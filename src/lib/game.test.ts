@@ -140,6 +140,9 @@ describe('Vollständige Runden', () => {
         const inGame = g.players.filter((p) => isPlaying(g.calls[p.id]))
         const tricks = inGame.reduce((a, p) => a + (g.tricksWon[p.id] ?? 0), 0)
         expect(tricks).toBe(TRICKS_PER_ROUND)
+        // Eine gespielte Runde hat immer genau einen Kratzer — ohne Kratzer
+        // wird nicht gespielt, und mehr als einer ist nicht erlaubt.
+        expect(inGame.filter((p) => g.calls[p.id] === 'kratzen')).toHaveLength(1)
         expect(g.trickHistory).toHaveLength(TRICKS_PER_ROUND)
         for (const p of inGame) expect(g.hands[p.id]).toHaveLength(0)
 

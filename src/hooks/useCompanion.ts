@@ -6,7 +6,7 @@ import {
   demoteOtherKratzer,
   isPlaying,
   settleRound,
-  validateTricks,
+  validateRound,
 } from '../lib/rules'
 import { usePersistedState } from './usePersistedState'
 
@@ -87,7 +87,7 @@ export function useCompanion() {
   )
 
   const settlement = useMemo(() => settleRound(state.pot, entries), [state.pot, entries])
-  const trickError = useMemo(() => validateTricks(entries), [entries])
+  const roundError = useMemo(() => validateRound(entries), [entries])
   const anybodyIn = useMemo(() => entries.some((e) => isPlaying(e.call)), [entries])
 
   /** Runde eröffnen: Pott aus den Strafen übernehmen, sonst neu einlegen. */
@@ -243,7 +243,7 @@ export function useCompanion() {
   return {
     state,
     settlement,
-    trickError,
+    roundError,
     anybodyIn,
     canUndo: state.past.length > 0,
     configure,

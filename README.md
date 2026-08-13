@@ -123,9 +123,11 @@ Bannerrunde. Pro Runde braucht sie nur zwei Angaben pro Spieler:
 Daraus fallen Ausschüttung, Bete und der neue Pott heraus. Hat niemand gespielt
 und ihr habt neu gemischt: ein Knopf, alle legen nochmals ein.
 
-Kratzen ist exklusiv — es kratzt nur einer pro Runde. Tippst du es bei jemand
-anderem an, fragt die App nach, bevor sie wechselt: sonst verschöbe sich still
-Geld.
+Eine gespielte Runde hat immer **genau einen Kratzer**. Fehlt er, lässt sich
+nicht buchen — ohne Kratzer geht auch niemand mit, dann wurde die Runde nicht
+gespielt und es geht mit *Alle legen nochmals ein* weiter. Tippst du Kratzen
+bei jemand anderem an, fragt die App nach, bevor sie wechselt: sonst verschöbe
+sich still Geld.
 
 ### Kasse ohne Bargeld
 
@@ -145,7 +147,8 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
 ## Digitaler Modus: volle Regeln
 
 - **Kratzen** = mind. 2 Stiche, **Mitgehen** = mind. 1 Stich, **Weiter** = aussetzen.
-- Es **kratzt nur einer** pro Runde. Wer danach dran ist, kann nur noch mitgehen oder passen.
+- Jede gespielte Runde hat **genau einen Kratzer**. Wer nach ihm dran ist, kann nur
+  noch mitgehen oder passen; kratzt niemand, wird nicht gespielt sondern neu aufgedeckt.
 - **Letzter**: muss mitgehen, wenn sonst niemand mitgeht — sonst freie Wahl.
 - **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein.
 - **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen.

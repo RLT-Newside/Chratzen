@@ -6,6 +6,7 @@ import {
   demoteOtherKratzer,
   letzterMustGo,
   settleRound,
+  validateRound,
   validateTricks,
 } from './rules'
 
@@ -151,6 +152,24 @@ describe('validateTricks', () => {
     expect(validateTricks([e('k', 'kratzen', 2), e('m', 'mitgehen', 2)])).toBeNull()
     expect(validateTricks([e('k', 'kratzen', 2), e('m', 'mitgehen', 1)])).toMatch(/genau 4/)
     expect(validateTricks([e('k', 'kratzen', 3), e('w', 'weiter', 1)])).toMatch(/Nur Kratzer/)
+  })
+})
+
+describe('validateRound', () => {
+  it('verlangt genau einen Kratzer', () => {
+    expect(validateRound([e('a', 'mitgehen', 2), e('b', 'mitgehen', 2)])).toMatch(/muss kratzen/)
+    expect(validateRound([e('a', 'kratzen', 2), e('b', 'kratzen', 2)])).toMatch(/nur einer/)
+    expect(validateRound([e('k', 'kratzen', 2), e('m', 'mitgehen', 2)])).toBeNull()
+  })
+
+  it('prüft die Stiche erst, wenn der Kratzer stimmt', () => {
+    // Ohne Kratzer ist die Stichzahl zweitrangig — zuerst kommt die Rolle.
+    expect(validateRound([e('a', 'mitgehen', 4)])).toMatch(/muss kratzen/)
+    expect(validateRound([e('k', 'kratzen', 3)])).toMatch(/genau 4/)
+  })
+
+  it('eine leere Runde wurde schlicht nicht gespielt', () => {
+    expect(validateRound([e('a', 'weiter', 0), e('b', 'weiter', 0)])).toMatch(/muss kratzen/)
   })
 })
 

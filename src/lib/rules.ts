@@ -98,6 +98,17 @@ export function settleRound(potBefore: number, entries: Entry[]): Settlement {
   return { potBefore, payouts, penalties, potAfter: penalty + (potBefore - paid) }
 }
 
+/**
+ * Eine gespielte Runde hat immer **genau einen** Kratzer: ohne Kratzer geht
+ * auch niemand mit, dann wird nicht gespielt sondern neu aufgedeckt.
+ */
+export function validateRound(entries: Entry[]): string | null {
+  const kratzer = entries.filter((e) => e.call === 'kratzen').length
+  if (kratzer === 0) return 'Einer muss kratzen — sonst wurde die Runde nicht gespielt.'
+  if (kratzer > 1) return 'Es kratzt nur einer pro Runde.'
+  return validateTricks(entries)
+}
+
 /** Stiche müssen exakt auf 4 aufgehen und dürfen nur an Teilnehmer gehen. */
 export function validateTricks(entries: Entry[]): string | null {
   const total = entries.reduce((a, e) => a + e.tricks, 0)

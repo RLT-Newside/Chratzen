@@ -19,7 +19,7 @@ export function RoundPhase({
   roles,
   tricks,
   settlement,
-  trickError,
+  roundError,
   anybodyIn,
   onSetRole,
   onSetTricks,
@@ -30,7 +30,7 @@ export function RoundPhase({
   roles: Record<string, Role>
   tricks: Record<string, number>
   settlement: Settlement
-  trickError: string | null
+  roundError: string | null
   anybodyIn: boolean
   onSetRole: (id: string, role: Role) => void
   onSetTricks: (id: string, n: number) => void
@@ -139,13 +139,13 @@ export function RoundPhase({
               : 'Pott ist leer — nächste Runde legen alle wieder ein.'}
           </p>
 
-          {trickError && <p className="mt-3 text-xs text-red-300/90 text-center">{trickError}</p>}
+          {roundError && <p className="mt-3 text-xs text-red-300/90 text-center">{roundError}</p>}
 
           <Button
             variant="primary"
             size="lg"
             className="mt-4 w-full"
-            disabled={!!trickError}
+            disabled={!!roundError}
             onClick={onSettle}
           >
             Buchen &amp; nächste Runde
