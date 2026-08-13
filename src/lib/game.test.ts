@@ -246,6 +246,118 @@ describe('Host-Rechte', () => {
   })
 })
 
+describe('Zweite Chance nach dem Kratzer', () => {
+  /** Deckt neu auf, bis es keine Bannerrunde ist — die setzt die Ansagen fest. */
+  function freshRound(names: string[]): Game {
+    const g = makeGame(names)
+    do {
+      g.pot = 0
+      for (const p of g.players) p.balance = 0
+      startRound(g)
+    } while (g.banner)
+    return g
+  }
+
+  const say = (g: Game, call: 'weiter' | 'kratzen' | 'mitgehen' | 'letzter') =>
+    applyCall(g, g.players[g.turn].id, call)
+
+  it('fragt nochmals, wer vor dem Kratzer gepasst hat', () => {
+    const g = freshRound(['A', 'B', 'C'])
+    // Reihenfolge ab links vom Geber: p1, p2, p0.
+    expect(say(g, 'weiter')).toBeNull() // p1 — konnte noch gar nicht mitgehen
+    expect(say(g, 'kratzen')).toBeNull() // p2
+    expect(say(g, 'weiter')).toBeNull() // p0 — hatte die Wahl bereits
+
+    expect(g.phase).toBe('calls')
+    expect(g.secondChance).toEqual(['p1'])
+    expect(g.players[g.turn].id).toBe('p1')
+
+    expect(applyCall(g, 'p1', 'mitgehen')).toBeNull()
+    expect(g.phase).toBe('exchange')
+    expect(g.calls.p1).toBe('mitgehen')
+    expect(g.calls.p0).toBe('weiter')
+  })
+
+  it('lässt in der zweiten Chance nicht mehr kratzen', () => {
+    const g = freshRound(['A', 'B', 'C'])
+    say(g, 'weiter')
+    say(g, 'kratzen')
+    say(g, 'weiter')
+
+    expect(applyCall(g, 'p1', 'kratzen')).toMatch(/nur noch mitgehen/)
+    expect(applyCall(g, 'p1', 'letzter')).toMatch(/nur noch mitgehen/)
+    expect(g.calls.p1).toBe('weiter')
+  })
+
+  it('darf auch beim zweiten Mal passen', () => {
+    const g = freshRound(['A', 'B', 'C'])
+    say(g, 'weiter')
+    say(g, 'kratzen')
+    say(g, 'weiter')
+
+    expect(applyCall(g, 'p1', 'weiter')).toBeNull()
+    expect(g.phase).toBe('exchange')
+    expect(g.players.filter((p) => isPlaying(g.calls[p.id]))).toHaveLength(1)
+  })
+
+  it('fragt mehrere der Reihe nach', () => {
+    const g = freshRound(['A', 'B', 'C', 'D'])
+    // Reihenfolge: p1, p2, p3, p0.
+    say(g, 'weiter')
+    say(g, 'weiter')
+    say(g, 'kratzen') // p3
+    say(g, 'weiter') // p0, nach dem Kratzer
+
+    expect(g.secondChance).toEqual(['p1', 'p2'])
+    expect(g.players[g.turn].id).toBe('p1')
+
+    expect(applyCall(g, 'p2', 'mitgehen')).toMatch(/nicht am Zug/)
+    applyCall(g, 'p1', 'weiter')
+    expect(g.players[g.turn].id).toBe('p2')
+    applyCall(g, 'p2', 'mitgehen')
+    expect(g.phase).toBe('exchange')
+  })
+
+  it('fragt niemanden nochmals, wenn der Kratzer zuerst dran war', () => {
+    const g = freshRound(['A', 'B', 'C'])
+    say(g, 'kratzen') // p1
+    say(g, 'weiter')
+    say(g, 'weiter')
+
+    expect(g.secondChance).toEqual([])
+    expect(g.phase).toBe('exchange')
+  })
+
+  it('der Letzte entscheidet erst nach den zweiten Chancen', () => {
+    const g = freshRound(['A', 'B', 'C', 'D'])
+    say(g, 'weiter') // p1
+    say(g, 'letzter') // p2
+    say(g, 'kratzen') // p3
+    say(g, 'weiter') // p0
+
+    // Erst p1 nochmals fragen …
+    expect(g.secondChance).toEqual(['p1'])
+    expect(g.awaitLetzter).toBe(false)
+
+    applyCall(g, 'p1', 'mitgehen')
+    // … dann darf der Letzte frei wählen, weil schon jemand mitgeht.
+    expect(g.awaitLetzter).toBe(true)
+    expect(g.players[g.turn].id).toBe('p2')
+  })
+
+  it('ohne Kratzer wird niemand nochmals gefragt', () => {
+    const g = freshRound(['A', 'B', 'C'])
+    const trumpBefore = g.trump
+    say(g, 'weiter')
+    say(g, 'weiter')
+    say(g, 'weiter')
+
+    expect(g.secondChance).toEqual([])
+    expect(g.flips).toBe(1)
+    expect(g.trump).not.toBe(trumpBefore)
+  })
+})
+
 describe('Regelverstösse werden abgelehnt', () => {
   it('nicht am Zug, falsche Karte, Mitgehen ohne Kratzer', () => {
     const g = makeGame(['A', 'B', 'C'])

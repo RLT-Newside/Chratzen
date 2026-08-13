@@ -151,7 +151,11 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
 - **Kratzen** = mind. 2 Stiche, **Mitgehen** = mind. 1 Stich, **Weiter** = aussetzen.
 - Jede gespielte Runde hat **genau einen Kratzer**. Wer nach ihm dran ist, kann nur
   noch mitgehen oder passen; kratzt niemand, wird nicht gespielt sondern neu aufgedeckt.
-- **Letzter**: muss mitgehen, wenn sonst niemand mitgeht — sonst freie Wahl.
+- **Zweite Chance**: Wer *vor* dem Kratzer gepasst hat, wird nochmals gefragt — als er
+  dran war, gab es ja niemanden, mit dem er hätte mitgehen können. Wer nach dem Kratzer
+  gepasst hat, hatte die Wahl bereits; für ihn ist es vorbei.
+- **Letzter**: muss mitgehen, wenn sonst niemand mitgeht — sonst freie Wahl. Er
+  entscheidet zuletzt, also nach den zweiten Chancen.
 - **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein.
 - **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen.
 - Austeilen einzeln reihum, 4 Karten; die letzte Karte des Gebers wird als Trumpf aufgedeckt.

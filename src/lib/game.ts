@@ -55,6 +55,13 @@ export type Game = {
   turn: number
   /** Noch ausstehende Ansagen in dieser Ansagerunde. */
   callsLeft: number
+  /** Reihenfolge der Ansagen — zeigt, wer vor dem Kratzer dran war. */
+  callOrder: string[]
+  /**
+   * Wer vor dem Kratzer gepasst hat, wird nochmals gefragt: als er dran war,
+   * gab es ja noch niemanden, mit dem man hätte mitgehen können.
+   */
+  secondChance: string[]
   awaitLetzter: boolean
   exchanged: Record<string, boolean>
   /** Spieler mit 5 Karten, die noch eine Schlafkarte abwerfen müssen. */
@@ -89,6 +96,8 @@ export function createGame(hostId: string, ante: number): Game {
     calls: {},
     turn: 0,
     callsLeft: 0,
+    callOrder: [],
+    secondChance: [],
     awaitLetzter: false,
     exchanged: {},
     sleepers: [],
@@ -128,6 +137,8 @@ function revealTrump(g: Game, card: Card) {
   g.trump = card
   g.calls = Object.fromEntries(g.players.map((p) => [p.id, 'weiter' as Call]))
   g.awaitLetzter = false
+  g.callOrder = []
+  g.secondChance = []
   g.turn = left(g, g.dealerIndex)
   g.callsLeft = g.players.length
   g.banner = card.rank === BANNER
@@ -295,8 +306,34 @@ function nobodyPlays(g: Game) {
   deal(g)
 }
 
-/** Ansagen abgeschlossen? Dann Letzter auflösen bzw. weiter zum Tausch. */
+/**
+ * Erste Ansagerunde vorbei. Wer vor dem Kratzer gepasst hat, kommt nochmals
+ * dran: als er sprach, gab es niemanden, mit dem er hätte mitgehen können.
+ */
 function afterCalls(g: Game) {
+  const kratzer = g.players.find((p) => g.calls[p.id] === 'kratzen')
+
+  if (!kratzer) {
+    // Ohne Kratzer gibt es nichts, wozu man mitginge — auch "Letzter" verfällt.
+    const letzter = g.players.find((p) => g.calls[p.id] === 'letzter')
+    if (letzter) g.calls[letzter.id] = 'weiter'
+    nobodyPlays(g)
+    return
+  }
+
+  const before = g.callOrder.slice(0, g.callOrder.indexOf(kratzer.id))
+  g.secondChance = before.filter((id) => g.calls[id] === 'weiter')
+
+  if (g.secondChance.length > 0) {
+    g.turn = indexOf(g, g.secondChance[0])
+    g.message = `${kratzer.name} kratzt — nochmals fragen, wer vorher gepasst hat.`
+    return
+  }
+  resolveLetzter(g)
+}
+
+/** Der Letzte entscheidet als allerletzter, also nach den zweiten Chancen. */
+function resolveLetzter(g: Game) {
   const list = g.players.map((p) => g.calls[p.id] ?? 'weiter')
   const letzterIdx = list.indexOf('letzter')
 
@@ -304,19 +341,11 @@ function afterCalls(g: Game) {
     if (letzterMustGo(list)) {
       g.calls[g.players[letzterIdx].id] = 'mitgehen'
       g.message = `${g.players[letzterIdx].name} war Letzter und muss mitgehen.`
-    } else if (list.some((c) => c === 'kratzen')) {
+    } else {
       g.awaitLetzter = true
       g.turn = letzterIdx
       return
-    } else {
-      // Niemand hat gekratzt — "Letzter" verfällt.
-      g.calls[g.players[letzterIdx].id] = 'weiter'
     }
-  }
-
-  if (!g.players.some((p) => g.calls[p.id] === 'kratzen')) {
-    nobodyPlays(g)
-    return
   }
   beginExchange(g)
 }
@@ -337,6 +366,16 @@ export function applyCall(g: Game, playerId: string, call: Call): string | null 
     return null
   }
 
+  // Zweite Chance: gefragt wird der Reihe nach, kratzen geht jetzt nicht mehr.
+  if (g.secondChance.length > 0) {
+    if (call !== 'mitgehen' && call !== 'weiter') return 'Jetzt nur noch mitgehen oder passen.'
+    g.calls[playerId] = call
+    g.secondChance = g.secondChance.filter((id) => id !== playerId)
+    if (g.secondChance.length > 0) g.turn = indexOf(g, g.secondChance[0])
+    else resolveLetzter(g)
+    return null
+  }
+
   if (call === 'kratzen' && others.includes('kratzen')) {
     return 'Es kratzt nur einer — du kannst noch mitgehen.'
   }
@@ -348,6 +387,7 @@ export function applyCall(g: Game, playerId: string, call: Call): string | null 
   }
 
   g.calls[playerId] = call
+  g.callOrder.push(playerId)
   g.callsLeft -= 1
   g.turn = left(g, g.turn)
   if (g.callsLeft === 0) afterCalls(g)
@@ -483,6 +523,8 @@ export type ClientGame = {
   trump: Card | null
   turn: number
   awaitLetzter: boolean
+  /** Du hast vor dem Kratzer gepasst und wirst nochmals gefragt. */
+  secondChance: boolean
   yourTurn: boolean
   legal: CardId[]
   mustDiscardSleeper: boolean
@@ -525,6 +567,7 @@ export function redact(g: Game, youId: string): ClientGame {
     trump: g.trump,
     turn: g.turn,
     awaitLetzter: g.awaitLetzter,
+    secondChance: g.secondChance.includes(youId),
     yourTurn: yourTurn && g.phase !== 'sleeper',
     legal:
       g.phase === 'play' && yourTurn ? legalCards(hand, lead as Suit | null).map(cardId) : [],

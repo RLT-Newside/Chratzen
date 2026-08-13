@@ -230,8 +230,13 @@ export function Table({
         {game.phase === 'calls' &&
           (game.yourTurn ? (
             <div className="grid grid-cols-4 gap-1.5">
-              {game.awaitLetzter ? (
+              {game.awaitLetzter || game.secondChance ? (
                 <>
+                  <p className="col-span-4 text-center text-xs text-white/45 mb-1">
+                    {game.awaitLetzter
+                      ? 'Du warst Letzter — jetzt entscheiden.'
+                      : `${game.players.find((p) => p.call === 'kratzen')?.name} kratzt. Gehst du doch mit?`}
+                  </p>
                   <Button variant="primary" className="col-span-2" onClick={() => onCall('mitgehen')}>
                     Mitgehen
                   </Button>
