@@ -45,10 +45,19 @@ export type Settlement = {
   potBefore: number
   /** Anteil am Pott pro Spieler-ID (nur Teilnehmer mit ≥1 Stich). */
   payouts: Record<string, number>
-  /** Strafe pro Spieler-ID — jeweils der volle Pott. */
+  /** Bete pro Spieler-ID — Kratzer doppelter Pott, Mitgeher einfacher. */
   penalties: Record<string, number>
   /** Neuer Pott für die nächste Runde = Summe aller Strafen. */
   potAfter: number
+}
+
+/**
+ * Bete: wer sein Soll verfehlt, legt den Pott nach — der Kratzer doppelt, weil
+ * er sich auf mehr verpflichtet hat.
+ */
+export function penaltyFor(call: Call, tricks: number, potBefore: number): number {
+  if (!isPlaying(call) || tricks >= requiredTricks(call)) return 0
+  return call === 'kratzen' ? potBefore * 2 : potBefore
 }
 
 /**
@@ -72,8 +81,9 @@ export function payoutWeight(call: Call, tricks: number): number {
  *   Kratzer (1) + Mitgeher (2) + Mitgeher (1)    → 0 : 1/2 : 1/2 — der Kratzer
  *                                                   hat sein Soll verfehlt
  *
- * Strafe (Bete/Sack): Kratzer unter 2 Stichen oder Mitgeher ohne Stich zahlt
- * den vollen Pott nach. Mehrere Verlierer zahlen je den vollen Betrag.
+ * Strafe (Bete/Sack): Der Kratzer unter 2 Stichen legt den **doppelten** Pott
+ * nach, ein Mitgeher ohne Stich den einfachen. Mehrere Verlierer zahlen je ihren
+ * vollen Betrag; zusammen ergeben sie den Pott der nächsten Runde.
  */
 export function settleRound(potBefore: number, entries: Entry[]): Settlement {
   const players = entries.filter((e) => isPlaying(e.call))
@@ -88,7 +98,8 @@ export function settleRound(potBefore: number, entries: Entry[]): Settlement {
 
   players.forEach((e, i) => {
     if (shares[i] > 0) payouts[e.playerId] = shares[i]
-    if (e.tricks < requiredTricks(e.call)) penalties[e.playerId] = potBefore
+    const bete = penaltyFor(e.call, e.tricks, potBefore)
+    if (bete > 0) penalties[e.playerId] = bete
   })
 
   // Hat ausnahmsweise niemand sein Soll geschafft, bleibt der Pott liegen,

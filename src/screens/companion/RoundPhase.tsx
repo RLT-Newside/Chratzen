@@ -114,7 +114,9 @@ export function RoundPhase({
                 >
                   braucht {need} ·{' '}
                   {got < need
-                    ? 'Bete, zahlt den Pott nach'
+                    ? role === 'kratzen'
+                      ? 'Bete, legt den doppelten Pott nach'
+                      : 'Bete, legt den Pott nach'
                     : role === 'kratzen'
                       ? 'geschafft, doppelter Anteil'
                       : 'geschafft, einfacher Anteil'}

@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 84 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
+npm test         # 85 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -108,8 +108,16 @@ Draht sprechen kann.
   | Kratzer 2, Mitgeher 1, Mitgeher 1 | ½ : ¼ : ¼ |
   | Kratzer 2, Mitgeher 2 | ⅔ : ⅓ — trotz gleich vieler Stiche |
   | Kratzer 1, Mitgeher 2, Mitgeher 1 | 0 : ½ : ½ — Kratzer verfehlt sein Soll |
-- **Bete**: Kratzer unter 2 Stichen bzw. Mitgeher ohne Stich zahlt den vollen Pott nach.
-  Mehrere Verlierer zahlen je den vollen Betrag → das ist der neue Pott.
+- **Bete**: Wer sein Soll verfehlt, legt nach — der **Kratzer den doppelten Pott**,
+  ein Mitgeher ohne Stich den einfachen. Er riskiert damit doppelt so viel, wie er
+  sich verpflichtet hat. Mehrere Verlierer zahlen nebeneinander; zusammen ergeben
+  ihre Beträge den Pott der nächsten Runde.
+
+  | Pott 3.00 | Bete | neuer Pott |
+  |---|---|---|
+  | Kratzer verfehlt | 6.00 | 6.00 |
+  | Mitgeher ohne Stich | 3.00 | 3.00 |
+  | beide zusammen | 6.00 + 3.00 | 9.00 |
 - Gerechnet wird durchgehend in **Rappen als Integer** — keine Float-Rundungsfehler,
   am Ende des Abends geht die Kasse exakt auf.
 

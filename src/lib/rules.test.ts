@@ -5,6 +5,7 @@ import {
   bannerCalls,
   demoteOtherKratzer,
   letzterMustGo,
+  penaltyFor,
   settleRound,
   validateRound,
   validateTricks,
@@ -67,32 +68,33 @@ describe('settleRound — Ausschüttung', () => {
       e('b', 'mitgehen', 1),
     ])
     expect(s.payouts).toEqual({ a: 150, b: 150 })
-    expect(s.penalties).toEqual({ k: 300 })
+    expect(s.penalties).toEqual({ k: 600 })
+    expect(s.potAfter).toBe(600)
   })
 })
 
 describe('settleRound — Strafen', () => {
-  it('Kratzer unter 2 Stichen zahlt den vollen Pott nach und geht leer aus', () => {
+  it('Kratzer unter 2 Stichen legt den doppelten Pott nach und geht leer aus', () => {
     const s = settleRound(300, [e('k', 'kratzen', 1), e('m', 'mitgehen', 3)])
-    expect(s.penalties).toEqual({ k: 300 })
+    expect(s.penalties).toEqual({ k: 600 })
     expect(s.payouts).toEqual({ m: 300 })
-    expect(s.potAfter).toBe(300)
+    expect(s.potAfter).toBe(600)
   })
 
-  it('Mitgeher ohne Stich zahlt den vollen Pott nach', () => {
+  it('Mitgeher ohne Stich zahlt den einfachen Pott nach', () => {
     const s = settleRound(300, [e('k', 'kratzen', 4), e('m', 'mitgehen', 0)])
     expect(s.penalties).toEqual({ m: 300 })
     expect(s.potAfter).toBe(300)
   })
 
-  it('mehrere Verlierer zahlen je den vollen Pott', () => {
+  it('mehrere Verlierer zahlen nebeneinander — Kratzer doppelt, Mitgeher einfach', () => {
     const s = settleRound(200, [
       e('k', 'kratzen', 1),
       e('a', 'mitgehen', 3),
       e('b', 'mitgehen', 0),
     ])
-    expect(s.penalties).toEqual({ k: 200, b: 200 })
-    expect(s.potAfter).toBe(400)
+    expect(s.penalties).toEqual({ k: 400, b: 200 })
+    expect(s.potAfter).toBe(600)
   })
 
   it('Aussteiger (weiter) bekommen nichts und zahlen nichts', () => {
@@ -170,6 +172,16 @@ describe('validateRound', () => {
 
   it('eine leere Runde wurde schlicht nicht gespielt', () => {
     expect(validateRound([e('a', 'weiter', 0), e('b', 'weiter', 0)])).toMatch(/muss kratzen/)
+  })
+})
+
+describe('penaltyFor', () => {
+  it('Kratzer doppelt, Mitgeher einfach, Erfolgreiche gar nicht', () => {
+    expect(penaltyFor('kratzen', 1, 250)).toBe(500)
+    expect(penaltyFor('kratzen', 2, 250)).toBe(0)
+    expect(penaltyFor('mitgehen', 0, 250)).toBe(250)
+    expect(penaltyFor('mitgehen', 1, 250)).toBe(0)
+    expect(penaltyFor('weiter', 0, 250)).toBe(0)
   })
 })
 
