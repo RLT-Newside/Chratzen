@@ -9,6 +9,7 @@ import {
   currentActor,
   declareBlind,
   declineBlind,
+  finishTrick,
   forceMove,
   kickPlayer,
   nextRound,
@@ -43,6 +44,11 @@ function freshDeal(names: string[], ante = 100): Game {
 function autoplay(g: Game) {
   for (let guard = 0; guard < 2000 && g.phase !== 'settle'; guard++) {
     expectNoDuplicates(g)
+    // Der fertige Stich liegt kurz; im Test gibt es keine Uhr, also sofort weg.
+    if (g.trickPending) {
+      finishTrick(g)
+      continue
+    }
     if (g.phase === 'blind') {
       // Mal so, mal so — beide Wege müssen sauber durchlaufen.
       const dealer = g.players[g.dealerIndex]
@@ -274,6 +280,11 @@ describe('Host-Rechte', () => {
     const g = makeGame(['A', 'B', 'C'])
     startRound(g)
     for (let i = 0; i < 200 && g.phase !== 'settle'; i++) {
+      // Während der Stich liegt, ist niemand am Zug — im Test sofort abräumen.
+      if (g.trickPending) {
+        finishTrick(g)
+        continue
+      }
       // Ohne einen Kratzer würde ewig neu aufgedeckt — den setzen wir normal.
       const noKratzer = !g.players.some((p) => g.calls[p.id] === 'kratzen')
       if (g.phase === 'calls' && noKratzer) {

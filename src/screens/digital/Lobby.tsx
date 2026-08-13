@@ -4,6 +4,7 @@ import { Button, Card, SectionTitle } from '../../components/ui'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
 import type { HostInfo } from '../../lib/transport'
+import { PausePicker } from './PausePicker'
 
 export function Lobby({
   game,
@@ -12,6 +13,7 @@ export function Lobby({
   onStart,
   onKick,
   onAddBot,
+  onSetPause,
   onLeave,
 }: {
   game: ClientGame
@@ -20,6 +22,7 @@ export function Lobby({
   onStart: () => void
   onKick: (playerId: string) => void
   onAddBot: () => void
+  onSetPause: (ms: number) => void
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState(false)
@@ -165,8 +168,10 @@ export function Lobby({
 
       {isHost ? (
         <>
+          <PausePicker value={game.trickPauseMs} onChange={onSetPause} />
+
           <Button
-            className="w-full mt-3 flex items-center justify-center gap-2"
+            className="w-full mt-6 flex items-center justify-center gap-2"
             disabled={game.players.length >= 8}
             onClick={onAddBot}
           >

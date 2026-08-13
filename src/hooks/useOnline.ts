@@ -169,6 +169,7 @@ export function useOnline() {
     next: () => send({ t: 'next' }),
     kick: (playerId: string) => send({ t: 'kick', playerId }),
     addBot: () => send({ t: 'addBot' }),
+    setPause: (ms: number) => send({ t: 'setPause', ms }),
     force: () => send({ t: 'force' }),
   }
 }

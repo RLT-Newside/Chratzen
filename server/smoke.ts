@@ -91,6 +91,8 @@ async function main() {
   send(host, { t: 'create', name: 'Anna', ante: 100 })
   await waitFor(host, (m) => m.t === 'joined', 'Tisch eröffnen')
   assert.ok(host.code, 'kein Raumcode erhalten')
+  // Ohne Stichpause, sonst dauert der Lauf unnötig lange.
+  send(host, { t: 'setPause', ms: 0 })
   console.log(`Tisch ${host.code} eröffnet`)
 
   const clients: Client[] = [host]

@@ -81,6 +81,13 @@ export type Game = {
   /** Spieler mit 5 Karten, die noch eine Schlafkarte abwerfen müssen. */
   sleepers: string[]
   trick: { playerId: string; card: Card }[]
+  /**
+   * Der Stich ist entschieden, liegt aber noch auf dem Tisch, damit alle die
+   * letzte Karte sehen. Solange ist niemand am Zug.
+   */
+  trickPending: string | null
+  /** Wie lange ein fertiger Stich liegen bleibt. 0 = sofort abräumen. */
+  trickPauseMs: number
   leader: number
   tricksWon: Record<string, number>
   trickHistory: { winner: string; cards: { playerId: string; card: Card }[] }[]
@@ -119,6 +126,8 @@ export function createGame(hostId: string, ante: number): Game {
     exchanged: {},
     sleepers: [],
     trick: [],
+    trickPending: null,
+    trickPauseMs: 1000,
     leader: 0,
     tricksWon: {},
     trickHistory: [],
@@ -233,6 +242,7 @@ function deal(g: Game) {
   g.exchanged = {}
   g.sleepers = []
   g.trick = []
+  g.trickPending = null
   g.blind = false
 
   for (let round = 0; round < 4; round++) {
@@ -310,6 +320,8 @@ export function kickPlayer(g: Game, hostId: string, targetId: string): string | 
 
 /** Wer ist gerade am Zug (in der Schlafkarten-Phase der erste offene Sleeper)? */
 export function currentActor(g: Game): GPlayer | null {
+  // Solange der fertige Stich liegt, wartet der Tisch.
+  if (g.trickPending) return null
   if (g.phase === 'blind') return g.players.find((p) => p.id === g.blindOffer) ?? null
   if (g.phase === 'sleeper') return g.players.find((p) => p.id === g.sleepers[0]) ?? null
   if (g.phase === 'lobby' || g.phase === 'settle') return null
@@ -532,6 +544,7 @@ export function applySleeperDiscard(g: Game, playerId: string, card: CardId): st
 
 export function playCard(g: Game, playerId: string, card: CardId): string | null {
   if (g.phase !== 'play') return 'Gerade kein Ausspielen.'
+  if (g.trickPending) return 'Der Stich wird noch gezeigt.'
   if (indexOf(g, playerId) !== g.turn) return 'Du bist nicht am Zug.'
 
   const hand = g.hands[playerId]
@@ -552,25 +565,43 @@ export function playCard(g: Game, playerId: string, card: CardId): string | null
     return null
   }
 
+  // Gewinner steht fest, die Karten bleiben aber liegen — abgeräumt wird erst
+  // nach der Pause, damit man die letzte Karte überhaupt zu sehen bekommt.
   const winner = trickWinner(g.trick, (g.trump as Card).suit)
   g.tricksWon[winner] = (g.tricksWon[winner] ?? 0) + 1
   g.trickHistory.push({ winner, cards: g.trick })
+  g.trickPending = winner
+  return null
+}
+
+/** Stich abräumen: der Gewinner spielt aus, nach dem vierten wird abgerechnet. */
+export function finishTrick(g: Game): void {
+  const winner = g.trickPending
+  if (!winner) return
+
   for (const t of g.trick) g.discards.push(t.card)
   g.trick = []
+  g.trickPending = null
   g.leader = indexOf(g, winner)
   g.turn = g.leader
 
-  if (g.trickHistory.length === TRICKS_PER_ROUND) {
-    g.phase = 'settle'
-    g.settlement = settleRound(
-      g.pot,
-      inGame.map((p) => ({
-        playerId: p.id,
-        call: g.calls[p.id] as Call,
-        tricks: g.tricksWon[p.id] ?? 0,
-      })),
-    )
-  }
+  if (g.trickHistory.length < TRICKS_PER_ROUND) return
+
+  g.phase = 'settle'
+  g.settlement = settleRound(
+    g.pot,
+    participants(g).map((p) => ({
+      playerId: p.id,
+      call: g.calls[p.id] as Call,
+      tricks: g.tricksWon[p.id] ?? 0,
+    })),
+  )
+}
+
+/** Wie lange ein fertiger Stich liegen bleibt — Sache des Hosts, gilt am Tisch. */
+export function setTrickPause(g: Game, hostId: string, ms: number): string | null {
+  if (g.hostId !== hostId) return 'Nur der Host stellt das Tempo ein.'
+  g.trickPauseMs = Math.max(0, Math.min(5000, Math.round(Number(ms) || 0)))
   return null
 }
 
@@ -619,6 +650,9 @@ export type ClientGame = {
   legal: CardId[]
   mustDiscardSleeper: boolean
   trick: { playerId: string; card: Card }[]
+  /** Der Stich ist entschieden und liegt noch — hier steht, wer ihn holt. */
+  trickPending: string | null
+  trickPauseMs: number
   trickHistory: { winner: string; cards: { playerId: string; card: Card }[] }[]
   settlement: Settlement | null
   message: string | null
@@ -636,7 +670,8 @@ export function redact(g: Game, youId: string): ClientGame {
   // Solange der Geber über den Blinden entscheidet, sieht er seine Karten nicht
   // — sonst könnte er nachschauen und trotzdem "blind" ansagen.
   const hand = g.blindOffer === youId ? [] : (g.hands[youId] ?? [])
-  const yourTurn = g.players[g.turn]?.id === youId
+  // Solange der fertige Stich liegt, wartet der Tisch — niemand ist am Zug.
+  const yourTurn = !g.trickPending && g.players[g.turn]?.id === youId
   const lead = g.trick[0]?.card.suit ?? null
 
   return {
@@ -668,6 +703,8 @@ export function redact(g: Game, youId: string): ClientGame {
       g.phase === 'play' && yourTurn ? legalCards(hand, lead as Suit | null).map(cardId) : [],
     mustDiscardSleeper: g.phase === 'sleeper' && g.sleepers.includes(youId),
     trick: g.trick,
+    trickPending: g.trickPending,
+    trickPauseMs: g.trickPauseMs,
     trickHistory: g.trickHistory,
     settlement: g.settlement,
     message: g.message,

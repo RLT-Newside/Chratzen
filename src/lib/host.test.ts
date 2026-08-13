@@ -10,9 +10,13 @@ function pick<T extends ServerMsg['t']>(out: Outgoing[], to: string, t: T) {
   return out.find((o) => o.to === to && o.msg.t === t)?.msg as Extract<ServerMsg, { t: T }> | undefined
 }
 
+/** Steuerbare Uhr — sonst läuft eine Stichpause im Test nie ab. */
+let NOW = 1_000_000
+
 function makeHost() {
+  NOW = 1_000_000
   let n = 0
-  return new TableHost({ randomId: () => `id${n++}`, now: () => 1_000_000 })
+  return new TableHost({ randomId: () => `id${n++}`, now: () => NOW })
 }
 
 function openTable(host: TableHost) {
@@ -149,6 +153,8 @@ describe('TableHost', () => {
     host.receive('c-anna', { t: 'addBot' })
     host.receive('c-anna', { t: 'addBot' })
 
+    // Ohne Stichpause, sonst müsste der Test die Uhr weiterdrehen.
+    host.receive('c-anna', { t: 'setPause', ms: 0 })
     let state = pick(host.receive('c-anna', { t: 'start' }), 'c-anna', 'state')
     expect(state?.game.phase).not.toBe('lobby')
 
@@ -193,6 +199,74 @@ describe('TableHost', () => {
     const s = game?.settlement
     if (!s) throw new Error('keine Abrechnung')
     expect(Object.values(s.payouts).reduce((a, b) => a + b, 0)).toBe(s.potBefore)
+  })
+
+  it('lässt den fertigen Stich liegen und räumt ihn erst nach der Pause ab', () => {
+    const host = makeHost()
+    openTable(host)
+    host.receive('c-anna', { t: 'addBot' })
+    host.receive('c-anna', { t: 'setPause', ms: 2000 })
+
+    // Bis zum ersten vollen Stich durchspielen.
+    let state = pick(host.receive('c-anna', { t: 'start' }), 'c-anna', 'state')
+    for (let i = 0; i < 200; i++) {
+      const pushed = pick(host.tick(), 'c-anna', 'state')
+      if (pushed) state = pushed
+      const game = state?.game
+      if (!game || game.trickPending) break
+
+      if (game.blindOffer) {
+        state = pick(host.receive('c-anna', { t: 'blind', take: false }), 'c-anna', 'state')
+      } else if (game.yourTurn && game.phase === 'calls') {
+        const call = game.players.some((p) => p.call === 'kratzen') ? 'mitgehen' : 'kratzen'
+        state = pick(host.receive('c-anna', { t: 'call', call }), 'c-anna', 'state')
+      } else if (game.yourTurn && game.phase === 'exchange') {
+        state = pick(host.receive('c-anna', { t: 'exchange', cards: [] }), 'c-anna', 'state')
+      } else if (game.mustDiscardSleeper) {
+        const c = game.hand[0]
+        state = pick(
+          host.receive('c-anna', { t: 'sleeper', card: `${c.suit}-${c.rank}` }),
+          'c-anna',
+          'state',
+        )
+      } else if (game.yourTurn && game.phase === 'play') {
+        state = pick(host.receive('c-anna', { t: 'play', card: game.legal[0] }), 'c-anna', 'state')
+      }
+    }
+
+    const held = state?.game
+    if (!held?.trickPending) throw new Error('kein fertiger Stich')
+    // Von jedem Teilnehmer liegt eine Karte, der Gewinner steht schon fest.
+    const inGame = held.players.filter((p) => p.call === 'kratzen' || p.call === 'mitgehen')
+    expect(held.trick).toHaveLength(inGame.length)
+    expect(held.players.find((p) => p.id === held.trickPending)?.tricks).toBe(1)
+
+    // Zu früh: nichts passiert.
+    NOW += 1000
+    host.tick()
+    expect(pick(host.tick(), 'c-anna', 'state')).toBeUndefined()
+
+    NOW += 1500
+    const cleared = pick(host.tick(), 'c-anna', 'state')
+    expect(cleared?.game.trick).toEqual([])
+    expect(cleared?.game.trickPending).toBeNull()
+  })
+
+  it('stellt die Pause nur auf Ansage des Hosts um', () => {
+    const host = makeHost()
+    const { code } = openTable(host)
+    join(host, 'c-beat', code, 'Beat')
+
+    expect(pick(host.receive('c-beat', { t: 'setPause', ms: 3000 }), 'c-beat', 'error')?.message)
+      .toMatch(/Nur der Host/)
+
+    expect(pick(host.receive('c-anna', { t: 'setPause', ms: 2000 }), 'c-anna', 'state')?.game.trickPauseMs)
+      .toBe(2000)
+    // Unsinnige Werte werden eingefangen.
+    expect(pick(host.receive('c-anna', { t: 'setPause', ms: -5 }), 'c-anna', 'state')?.game.trickPauseMs)
+      .toBe(0)
+    expect(pick(host.receive('c-anna', { t: 'setPause', ms: 99_999 }), 'c-anna', 'state')?.game.trickPauseMs)
+      .toBe(5000)
   })
 
   it('gibt die Host-Rolle nie an einen Bot weiter', () => {

@@ -17,11 +17,13 @@ import {
   currentActor,
   declareBlind,
   declineBlind,
+  finishTrick,
   forceMove,
   kickPlayer,
   nextRound,
   playCard,
   redact,
+  setTrickPause,
   startRound,
 } from './game'
 import type { ClientMsg, Outgoing } from './protocol'
@@ -45,6 +47,8 @@ type Room = {
   emptySince: number | null
   turnSince: number
   turnKey: string
+  /** Wann der fertige Stich zum Liegen kam. */
+  trickSince: number
 }
 
 export type HostOptions = {
@@ -95,7 +99,13 @@ export class TableHost {
 
   /** Zustand an alle Verbindungen des Raums — jeweils aus deren Sicht. */
   private broadcast(room: Room): Outgoing[] {
+    // Pause "Aus" heisst sofort, nicht erst beim nächsten Tick.
+    if (room.game.trickPending && room.game.trickPauseMs === 0) finishTrick(room.game)
+
     const actor = currentActor(room.game)
+
+    // Uhr für die Stichpause: läuft, sobald der Stich entschieden daliegt.
+    room.trickSince = room.game.trickPending ? room.trickSince || this.now() : 0
 
     // Zug-Uhr nur zurücksetzen, wenn wirklich ein neuer Zug beginnt.
     const key = `${room.game.round}|${room.game.phase}|${actor?.id ?? '-'}|${room.game.trick.length}`
@@ -197,6 +207,7 @@ export class TableHost {
       emptySince: null,
       turnSince: this.now(),
       turnKey: '',
+      trickSince: 0,
     }
     this.rooms.set(code, room)
     this.attach(room, playerId, connId)
@@ -270,6 +281,9 @@ export class TableHost {
         break
       case 'force':
         err = forceMove(g, me)
+        break
+      case 'setPause':
+        err = setTrickPause(g, me, msg.ms)
         break
       case 'addBot':
         if (g.hostId !== me) err = 'Nur der Host kann Bots setzen.'
@@ -380,6 +394,13 @@ export class TableHost {
     for (const [code, room] of this.rooms) {
       if (room.emptySince && now - room.emptySince > ROOM_TTL_MS) {
         this.rooms.delete(code)
+        continue
+      }
+
+      // Erst den liegenden Stich abräumen, sonst zieht niemand weiter.
+      if (room.game.trickPending && now - room.trickSince >= room.game.trickPauseMs) {
+        finishTrick(room.game)
+        out.push(...this.broadcast(room))
         continue
       }
 

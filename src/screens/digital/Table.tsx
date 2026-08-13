@@ -6,6 +6,7 @@ import { type CardId, RANK_NAME, cardId, sortHand } from '../../lib/cards'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
 import type { Call } from '../../lib/rules'
+import { PausePicker } from './PausePicker'
 
 const CALL_BADGE: Record<Call, { label: string; cls: string } | null> = {
   weiter: { label: 'raus', cls: 'bg-white/5 text-white/30' },
@@ -24,6 +25,7 @@ export function Table({
   onNext,
   onKick,
   onForce,
+  onSetPause,
   onLeave,
 }: {
   game: ClientGame
@@ -35,6 +37,7 @@ export function Table({
   onNext: () => void
   onKick: (playerId: string) => void
   onForce: () => void
+  onSetPause: (ms: number) => void
   onLeave: () => void
 }) {
   const [selected, setSelected] = useState<CardId[]>([])
@@ -171,6 +174,12 @@ export function Table({
         })}
       </div>
 
+      {manage && (
+        <div className="mt-3 glass rounded-xl p-3">
+          <PausePicker value={game.trickPauseMs} onChange={onSetPause} compact />
+        </div>
+      )}
+
       {game.canForce && game.actorId && game.actorId !== game.youId && (
         <div className="mt-3 glass rounded-xl px-3 py-2 flex items-center gap-3 border-amber-400/25">
           <p className="flex-1 text-xs text-amber-200/85 leading-snug">
@@ -192,10 +201,19 @@ export function Table({
           <div className="flex gap-2">
             {game.trick.map((t) => {
               const p = game.players.find((x) => x.id === t.playerId)
+              const wins = game.trickPending === t.playerId
               return (
                 <div key={cardId(t.card)} className="text-center">
-                  <PlayingCard card={t.card} size="md" />
-                  <p className="text-[10px] text-white/40 mt-1 truncate max-w-16">{p?.name}</p>
+                  <div className={wins ? 'ring-2 ring-brand rounded-xl' : ''}>
+                    <PlayingCard card={t.card} size="md" dimmed={!!game.trickPending && !wins} />
+                  </div>
+                  <p
+                    className={`text-[10px] mt-1 truncate max-w-16 ${
+                      wins ? 'text-brand' : 'text-white/40'
+                    }`}
+                  >
+                    {wins ? `${p?.name} sticht` : p?.name}
+                  </p>
                 </div>
               )
             })}

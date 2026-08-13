@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 82 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
+npm test         # 84 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -85,6 +85,7 @@ Draht sprechen kann.
 | `{t:'kick', playerId}` | rauswerfen (nur Host) |
 | `{t:'force'}` | hängenden Zug übernehmen (nur Host) |
 | `{t:'addBot'}` | Bot dazusetzen (nur Host, nur in der Lobby) |
+| `{t:'setPause', ms}` | Stichpause 0–5000 ms (nur Host) |
 
 | Tischwirt → Gast | |
 |---|---|
@@ -175,6 +176,11 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
   aufsteigend. Trumpf schlägt Farbe.
 - **Farbzwang** (bedienen wenn möglich), kein Stichzwang — anpassbar in `src/lib/cards.ts`.
 - **Der Kratzer eröffnet**: er tauscht zuerst und spielt den ersten Stich aus.
+- **Stichpause**: ein fertiger Stich bleibt liegen (Standard 1 s), damit alle die
+  letzte Karte sehen. Solange ist niemand am Zug, die stechende Karte ist markiert.
+  Der Host stellt das in der Lobby oder unterwegs im Verwalten-Bereich um
+  (Aus / 1 / 2 / 3 s). Die Pause gilt für den ganzen Tisch — pro Spieler ginge
+  nicht, alle sehen denselben Zustand.
 - Der aufgedeckte Trumpf ist die letzte Karte des Gebers und **bleibt in seiner
   Hand** — der Tisch zeigt darum an, bei wem sie liegt.
 
