@@ -79,10 +79,24 @@ describe('botPlay', () => {
     expect(botPlay('me', mittel, [], TRUMP)).toBe('rosen-14')
   })
 
-  it('bedient die angespielte Farbe', () => {
+  it('sticht mit Trumpf, wenn die Farbe den Stich nicht holt', () => {
     const hand = [c('eichel', 6), c('rosen', 14)]
     const trick = [{ playerId: 'a', card: c('eichel', 13) }]
-    expect(botPlay('me', hand, trick, TRUMP)).toBe('eichel-6')
+    expect(botPlay('me', hand, trick, TRUMP)).toBe('rosen-14')
+  })
+
+  it('bedient, wenn die Farbe reicht — der Trumpf bleibt liegen', () => {
+    const hand = [c('eichel', 14), c('rosen', 6)]
+    const trick = [{ playerId: 'a', card: c('eichel', 13) }]
+    expect(botPlay('me', hand, trick, TRUMP)).toBe('eichel-14')
+  })
+
+  it('muss bedienen, wenn Trumpf angespielt ist', () => {
+    // Bei angespieltem Trumpf gibt es kein Ausweichen — auch nicht auf eine
+    // wertlose Fremdfarbe.
+    const hand = [c('eichel', 6), c('rosen', 7)]
+    const trick = [{ playerId: 'a', card: c('rosen', 14) }]
+    expect(botPlay('me', hand, trick, TRUMP)).toBe('rosen-7')
   })
 
   it('gewinnt den Stich so billig wie möglich', () => {

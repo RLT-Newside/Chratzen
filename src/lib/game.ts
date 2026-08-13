@@ -142,6 +142,7 @@ const at = (g: Game, i: number) => g.players[i % g.players.length]
 const indexOf = (g: Game, id: string) => g.players.findIndex((p) => p.id === id)
 const left = (g: Game, i: number) => (i + 1) % g.players.length
 const participants = (g: Game) => g.players.filter((p) => isPlaying(g.calls[p.id] ?? 'weiter'))
+const trumpSuit = (g: Game): Suit | null => g.trump?.suit ?? null
 
 function draw(g: Game): Card {
   if (g.deck.length === 0) {
@@ -350,7 +351,7 @@ export function forceMove(g: Game, hostId: string): string | null {
       return applySleeperDiscard(g, actor.id, cardId(g.hands[actor.id][0]))
     case 'play': {
       const lead = g.trick[0]?.card.suit ?? null
-      return playCard(g, actor.id, cardId(legalCards(g.hands[actor.id], lead)[0]))
+      return playCard(g, actor.id, cardId(legalCards(g.hands[actor.id], lead, trumpSuit(g))[0]))
     }
     default:
       return 'Hier gibt es nichts zu erzwingen.'
@@ -552,8 +553,8 @@ export function playCard(g: Game, playerId: string, card: CardId): string | null
   if (!chosen) return 'Karte nicht auf der Hand.'
 
   const lead = g.trick[0]?.card.suit ?? null
-  if (!legalCards(hand, lead).some((c) => cardId(c) === card)) {
-    return 'Farbe muss bedient werden.'
+  if (!legalCards(hand, lead, trumpSuit(g)).some((c) => cardId(c) === card)) {
+    return 'Farbe bedienen — oder mit Trumpf stechen.'
   }
 
   g.hands[playerId] = hand.filter((c) => cardId(c) !== card)
@@ -700,7 +701,9 @@ export function redact(g: Game, youId: string): ClientGame {
     blind: g.blind,
     yourTurn: yourTurn && g.phase !== 'sleeper',
     legal:
-      g.phase === 'play' && yourTurn ? legalCards(hand, lead as Suit | null).map(cardId) : [],
+      g.phase === 'play' && yourTurn
+        ? legalCards(hand, lead as Suit | null, trumpSuit(g)).map(cardId)
+        : [],
     mustDiscardSleeper: g.phase === 'sleeper' && g.sleepers.includes(youId),
     trick: g.trick,
     trickPending: g.trickPending,

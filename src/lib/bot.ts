@@ -80,7 +80,7 @@ export function botPlay(
   trick: { playerId: string; card: Card }[],
   trump: Suit,
 ): CardId {
-  const options = legalCards(hand, trick[0]?.card.suit ?? null)
+  const options = legalCards(hand, trick[0]?.card.suit ?? null, trump)
   const byValue = [...options].sort((a, b) => value(a, trump) - value(b, trump))
 
   if (trick.length === 0) return cardId(byValue[byValue.length - 1])

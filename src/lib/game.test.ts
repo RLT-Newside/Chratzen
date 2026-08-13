@@ -76,7 +76,7 @@ function autoplay(g: Game) {
     } else if (g.phase === 'play') {
       const p = g.players[g.turn]
       const lead = g.trick[0]?.card.suit ?? null
-      const pick = legalCards(g.hands[p.id], lead)[0] as Card
+      const pick = legalCards(g.hands[p.id], lead, g.trump?.suit ?? null)[0] as Card
       expect(playCard(g, p.id, cardId(pick))).toBeNull()
     } else {
       throw new Error(`unerwartete Phase ${g.phase}`)
@@ -326,6 +326,79 @@ describe('Kartenbestand', () => {
       autoplay(g)
       expectNoDuplicates(g)
     }
+  })
+})
+
+describe('Bedienen oder stechen', () => {
+  const c = (suit: 'schellen' | 'schilten' | 'rosen' | 'eichel', rank: number) =>
+    ({ suit, rank }) as Card
+  const ids = (cards: Card[]) => cards.map(cardId).sort()
+
+  it('lässt Trumpf zu, auch wenn man die angespielte Farbe hätte', () => {
+    const hand = [c('rosen', 7), c('rosen', 13), c('schellen', 6), c('eichel', 14)]
+    // Trumpf Schellen, angespielt sind Rosen: bedienen oder mit Schellen stechen.
+    expect(ids(legalCards(hand, 'rosen', 'schellen'))).toEqual(
+      ids([c('rosen', 7), c('rosen', 13), c('schellen', 6)]),
+    )
+    // Die Fremdfarbe bleibt gesperrt.
+    expect(ids(legalCards(hand, 'rosen', 'schellen'))).not.toContain('eichel-14')
+  })
+
+  it('verlangt bei angespieltem Trumpf weiterhin bedienen', () => {
+    const hand = [c('schellen', 6), c('rosen', 14)]
+    expect(ids(legalCards(hand, 'schellen', 'schellen'))).toEqual(['schellen-6'])
+  })
+
+  it('gibt ohne die angespielte Farbe die ganze Hand frei', () => {
+    const hand = [c('schellen', 6), c('eichel', 14)]
+    expect(ids(legalCards(hand, 'rosen', 'schellen'))).toEqual(ids(hand))
+  })
+
+  it('lässt beim Ausspielen alles zu', () => {
+    const hand = [c('schellen', 6), c('eichel', 14)]
+    expect(ids(legalCards(hand, null, 'schellen'))).toEqual(ids(hand))
+  })
+
+  it('die Engine nimmt den Trumpf an, obwohl die Farbe bedienbar wäre', () => {
+    const g = freshDeal(['A', 'B', 'C'])
+    applyCall(g, g.players[g.turn].id, 'kratzen')
+    while (g.phase === 'calls') applyCall(g, g.players[g.turn].id, 'mitgehen')
+    while (g.phase === 'exchange') applyExchange(g, g.players[g.turn].id, [])
+    while (g.phase === 'sleeper') {
+      const id = g.sleepers[0]
+      applySleeperDiscard(g, id, cardId(g.hands[id][0]))
+    }
+    expect(g.phase).toBe('play')
+
+    const trump = (g.trump as Card).suit
+    const lead = (['schellen', 'schilten', 'rosen', 'eichel'] as const).find((x) => x !== trump)
+    if (!lead) throw new Error('keine Fremdfarbe')
+
+    // Vorderhand spielt die Fremdfarbe an.
+    const leader = g.players[g.turn]
+    g.hands[leader.id] = [c(lead, 9)]
+    expect(playCard(g, leader.id, cardId(c(lead, 9)))).toBeNull()
+    if (g.trickPending) return // allein am Tisch, kein Gegenspieler
+
+    // Der Nächste könnte bedienen, darf aber stechen — beides steht zur Wahl.
+    const next = g.players[g.turn]
+    g.hands[next.id] = [c(lead, 7), c(trump, 6)]
+    expect(redact(g, next.id).legal.sort()).toEqual(ids([c(lead, 7), c(trump, 6)]))
+
+    expect(playCard(g, next.id, cardId(c(trump, 6)))).toBeNull()
+
+    // Restliche Teilnehmer mit wertlosen Fremdfarben abfertigen.
+    const junk = (['schellen', 'schilten', 'rosen', 'eichel'] as const).find(
+      (x) => x !== trump && x !== lead,
+    ) as 'schellen'
+    for (let rank = 6; g.phase === 'play' && !g.trickPending && rank < 10; rank++) {
+      const p = g.players[g.turn]
+      g.hands[p.id] = [c(junk, rank)]
+      expect(playCard(g, p.id, cardId(c(junk, rank)))).toBeNull()
+    }
+
+    // Der kleine Trumpf sticht die höhere Farbkarte.
+    expect(g.trickPending).toBe(next.id)
   })
 })
 

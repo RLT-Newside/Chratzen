@@ -76,14 +76,19 @@ export function trickWinner(
 }
 
 /**
- * Farbzwang: wer die angespielte Farbe hat, muss sie bedienen. Sonst freie Wahl
- * (Trumpfen erlaubt, aber kein Zwang).
- * ponytail: kein Stichzwang — falls eure Tischregel das verlangt, hier ergänzen.
+ * Bedienen — oder stechen. Wer die angespielte Farbe hat, muss sie bedienen,
+ * darf aber stattdessen immer Trumpf spielen. Wer die Farbe nicht hat, ist frei.
+ *
+ * ponytail: kein Stichzwang und kein Verbot des Untertrumpfens. Falls eure
+ * Tischregel das kennt, hier ergänzen.
  */
-export function legalCards(hand: Card[], lead: Suit | null): Card[] {
+export function legalCards(hand: Card[], lead: Suit | null, trump: Suit | null): Card[] {
   if (!lead) return hand
   const follow = hand.filter((c) => c.suit === lead)
-  return follow.length > 0 ? follow : hand
+  if (follow.length === 0) return hand
+  // Bei angespieltem Trumpf stecken die Trümpfe schon in `follow`.
+  const trumps = trump && trump !== lead ? hand.filter((c) => c.suit === trump) : []
+  return [...follow, ...trumps]
 }
 
 /** Sortierung für die Handanzeige: nach Farbe, innerhalb absteigend. */

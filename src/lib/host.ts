@@ -378,7 +378,7 @@ export class TableHost {
     else if (g.phase === 'exchange') applyExchange(g, id, [])
     else if (g.phase === 'sleeper' && hand[0]) applySleeperDiscard(g, id, cardId(hand[0]))
     else if (g.phase === 'play') {
-      const legal = legalCards(hand, lead)[0]
+      const legal = legalCards(hand, lead, g.trump?.suit ?? null)[0]
       if (legal) playCard(g, id, cardId(legal))
     }
   }

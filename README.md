@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 85 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
+npm test         # 92 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -182,7 +182,10 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
 - 36 Karten, 4 Farben (Schellen, Schilten, Rosen, Eichel) à 9 Werte:
   **6, 7, 8, 9, Banner (10), Under, Ober, König, Ass** — in dieser Reihenfolge
   aufsteigend. Trumpf schlägt Farbe.
-- **Farbzwang** (bedienen wenn möglich), kein Stichzwang — anpassbar in `src/lib/cards.ts`.
+- **Bedienen oder stechen**: Wer die angespielte Farbe hat, muss sie bedienen — darf
+  aber stattdessen immer **Trumpf** spielen. Ist Trumpf angespielt, gilt nur bedienen.
+  Wer die Farbe nicht hat, ist frei. Kein Stichzwang und kein Verbot des
+  Untertrumpfens — beides bei Bedarf in `src/lib/cards.ts`.
 - **Der Kratzer eröffnet**: er tauscht zuerst und spielt den ersten Stich aus.
 - **Stichpause**: ein fertiger Stich bleibt liegen (Standard 1 s), damit alle die
   letzte Karte sehen. Solange ist niemand am Zug, die stechende Karte ist markiert.
