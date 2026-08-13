@@ -52,11 +52,25 @@ export type Settlement = {
 }
 
 /**
+ * Anteil am Pott: der Kratzer zählt doppelt, ein Mitgeher einfach. Wer sein
+ * Soll verfehlt, bekommt nichts — zusätzliche Stiche über dem Minimum bringen
+ * kein Geld, sie entscheiden nur über geschafft oder Bete.
+ */
+export function payoutWeight(call: Call, tricks: number): number {
+  if (!isPlaying(call) || tricks < requiredTricks(call)) return 0
+  return call === 'kratzen' ? 2 : 1
+}
+
+/**
  * Schüttet den Pott aus und berechnet die Strafen.
  *
- * Ausschüttung: gewichtet nach erzielten Stichen.
- *   1 Kratzer (2 Stiche) + 1 Mitgeher (1 Stich) → 2/3 : 1/3
- *   1 Kratzer (2) + 2 Mitgeher (1/1)            → 1/2 : 1/4 : 1/4
+ * Ausschüttung nach Rolle, nicht nach Stichzahl:
+ *   Kratzer (2 Stiche) + Mitgeher (1)            → 2/3 : 1/3
+ *   Kratzer (2) + 2 Mitgeher (1/1)               → 1/2 : 1/4 : 1/4
+ *   Kratzer (2) + Mitgeher (2)                   → 2/3 : 1/3  — auch bei gleich
+ *                                                   vielen Stichen doppelt
+ *   Kratzer (1) + Mitgeher (2) + Mitgeher (1)    → 0 : 1/2 : 1/2 — der Kratzer
+ *                                                   hat sein Soll verfehlt
  *
  * Strafe (Bete/Sack): Kratzer unter 2 Stichen oder Mitgeher ohne Stich zahlt
  * den vollen Pott nach. Mehrere Verlierer zahlen je den vollen Betrag.
@@ -66,7 +80,7 @@ export function settleRound(potBefore: number, entries: Entry[]): Settlement {
 
   const shares = splitByWeight(
     potBefore,
-    players.map((e) => e.tricks),
+    players.map((e) => payoutWeight(e.call, e.tricks)),
   )
 
   const payouts: Record<string, number> = {}
@@ -77,8 +91,11 @@ export function settleRound(potBefore: number, entries: Entry[]): Settlement {
     if (e.tricks < requiredTricks(e.call)) penalties[e.playerId] = potBefore
   })
 
-  const potAfter = Object.values(penalties).reduce((a, b) => a + b, 0)
-  return { potBefore, payouts, penalties, potAfter }
+  // Hat ausnahmsweise niemand sein Soll geschafft, bleibt der Pott liegen,
+  // statt sich in Luft aufzulösen.
+  const paid = Object.values(payouts).reduce((a, b) => a + b, 0)
+  const penalty = Object.values(penalties).reduce((a, b) => a + b, 0)
+  return { potBefore, payouts, penalties, potAfter: penalty + (potBefore - paid) }
 }
 
 /** Stiche müssen exakt auf 4 aufgehen und dürfen nur an Teilnehmer gehen. */

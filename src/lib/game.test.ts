@@ -184,7 +184,8 @@ describe('Host-Rechte', () => {
     expect(g.players.map((p) => p.id)).toEqual(['p0', 'p1'])
     expect(g.hands.p2).toBeUndefined()
     // Nur der Weggeworfene fehlt in der Bilanz — sonst stimmt die Kasse weiter.
-    expect(chips(g)).toBe(-kickedAfterBooking)
+    // (Summe statt Vergleich, sonst stolpert Object.is über -0.)
+    expect(chips(g) + kickedAfterBooking).toBe(0)
   })
 
   it('erneutes Kicken hebt die Markierung wieder auf', () => {

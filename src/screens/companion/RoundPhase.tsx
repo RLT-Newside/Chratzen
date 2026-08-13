@@ -112,7 +112,12 @@ export function RoundPhase({
                 <p
                   className={`text-[11px] mt-2 ${got < need ? 'text-red-300/80' : 'text-emerald-300/70'}`}
                 >
-                  braucht {need} · {got < need ? 'Bete, zahlt den Pott nach' : 'geschafft'}
+                  braucht {need} ·{' '}
+                  {got < need
+                    ? 'Bete, zahlt den Pott nach'
+                    : role === 'kratzen'
+                      ? 'geschafft, doppelter Anteil'
+                      : 'geschafft, einfacher Anteil'}
                 </p>
               )}
             </div>

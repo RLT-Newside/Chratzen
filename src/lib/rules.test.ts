@@ -46,14 +46,35 @@ describe('settleRound — Ausschüttung', () => {
     const s = settleRound(250, [e('k', 'kratzen', 4)])
     expect(s.payouts).toEqual({ k: 250 })
   })
+
+  it('Kratzer bekommt doppelt, auch wenn der Mitgeher gleich viele Stiche hat', () => {
+    const s = settleRound(300, [e('k', 'kratzen', 2), e('m', 'mitgehen', 2)])
+    expect(s.payouts).toEqual({ k: 200, m: 100 })
+    expect(s.penalties).toEqual({})
+  })
+
+  it('mehr Stiche als nötig bringen kein zusätzliches Geld', () => {
+    const gierig = settleRound(300, [e('k', 'kratzen', 3), e('m', 'mitgehen', 1)])
+    const knapp = settleRound(300, [e('k', 'kratzen', 2), e('m', 'mitgehen', 2)])
+    expect(gierig.payouts).toEqual(knapp.payouts)
+  })
+
+  it('verfehlter Kratzer bekommt nichts, die Mitgeher teilen hälftig', () => {
+    const s = settleRound(300, [
+      e('k', 'kratzen', 1),
+      e('a', 'mitgehen', 2),
+      e('b', 'mitgehen', 1),
+    ])
+    expect(s.payouts).toEqual({ a: 150, b: 150 })
+    expect(s.penalties).toEqual({ k: 300 })
+  })
 })
 
 describe('settleRound — Strafen', () => {
-  it('Kratzer unter 2 Stichen zahlt den vollen Pott nach', () => {
+  it('Kratzer unter 2 Stichen zahlt den vollen Pott nach und geht leer aus', () => {
     const s = settleRound(300, [e('k', 'kratzen', 1), e('m', 'mitgehen', 3)])
     expect(s.penalties).toEqual({ k: 300 })
-    // Anteil richtet sich nach Stichen (1:3) — die Strafe kommt obendrauf.
-    expect(s.payouts).toEqual({ k: 75, m: 225 })
+    expect(s.payouts).toEqual({ m: 300 })
     expect(s.potAfter).toBe(300)
   })
 

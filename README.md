@@ -93,8 +93,17 @@ Draht sprechen kann.
 ## Geld (gilt für beide Modi)
 
 - **Grundeinsatz** 0.50 / 1.00 / 2.00 CHF. Alle legen ein, sobald der Pott leer ist.
-- **Ausschüttung**: gewichtet nach erzielten Stichen.
-  `2:1 → ⅔/⅓`, `2:1:1 → ½/¼/¼`. Rappen-genau (Largest Remainder).
+- **Ausschüttung nach Rolle, nicht nach Stichzahl**: der Kratzer bekommt einen
+  doppelten Anteil, jeder Mitgeher einen einfachen. Wer sein Soll verfehlt,
+  bekommt nichts. Stiche über dem Minimum bringen kein zusätzliches Geld — sie
+  entscheiden nur über geschafft oder Bete. Rappen-genau (Largest Remainder).
+
+  | Runde | Ausschüttung |
+  |---|---|
+  | Kratzer 2 Stiche, Mitgeher 1 | ⅔ : ⅓ |
+  | Kratzer 2, Mitgeher 1, Mitgeher 1 | ½ : ¼ : ¼ |
+  | Kratzer 2, Mitgeher 2 | ⅔ : ⅓ — trotz gleich vieler Stiche |
+  | Kratzer 1, Mitgeher 2, Mitgeher 1 | 0 : ½ : ½ — Kratzer verfehlt sein Soll |
 - **Bete**: Kratzer unter 2 Stichen bzw. Mitgeher ohne Stich zahlt den vollen Pott nach.
   Mehrere Verlierer zahlen je den vollen Betrag → das ist der neue Pott.
 - Gerechnet wird durchgehend in **Rappen als Integer** — keine Float-Rundungsfehler,
