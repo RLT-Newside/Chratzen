@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 92 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
+npm test         # 97 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -164,8 +164,10 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
 - **Zweite Chance**: Wer *vor* dem Kratzer gepasst hat, wird nochmals gefragt — als er
   dran war, gab es ja niemanden, mit dem er hätte mitgehen können. Wer nach dem Kratzer
   gepasst hat, hatte die Wahl bereits; für ihn ist es vorbei.
-- **Letzter**: muss mitgehen, wenn sonst niemand mitgeht — sonst freie Wahl. Er
-  entscheidet zuletzt, also nach den zweiten Chancen.
+- **Letzter**: ansagbar nur, wenn schon jemand **gekratzt** hat und noch **niemand
+  mitgegangen** ist — sonst gäbe es nichts abzuwarten. Er entscheidet zuletzt, also
+  nach den zweiten Chancen: geht bis dahin niemand mit, **muss** er mitgehen; geht
+  jemand mit, wählt er frei. Nur einer pro Runde.
 - **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein.
 - **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen.
 - **Blinder**: Nur der Geber, und nur direkt nach dem Austeilen — er hat da erst den

@@ -547,6 +547,80 @@ describe('Der Kratzer eröffnet', () => {
   })
 })
 
+describe('Letzter', () => {
+  const say = (g: Game, call: 'weiter' | 'kratzen' | 'mitgehen' | 'letzter') =>
+    applyCall(g, g.players[g.turn].id, call)
+
+  it('geht erst, wenn jemand gekratzt hat', () => {
+    const g = freshDeal(['A', 'B', 'C'])
+    expect(say(g, 'letzter')).toMatch(/erst, wenn jemand gekratzt/)
+    expect(g.calls[g.players[g.turn].id]).toBe('weiter')
+
+    expect(say(g, 'kratzen')).toBeNull()
+    expect(say(g, 'letzter')).toBeNull()
+  })
+
+  it('geht nicht mehr, sobald jemand mitgegangen ist', () => {
+    const g = freshDeal(['A', 'B', 'C'])
+    say(g, 'kratzen')
+    say(g, 'mitgehen')
+    expect(say(g, 'letzter')).toMatch(/schon jemand mit/)
+  })
+
+  it('nur einer kann Letzter sein', () => {
+    const g = freshDeal(['A', 'B', 'C', 'D'])
+    say(g, 'kratzen')
+    say(g, 'letzter')
+    expect(say(g, 'letzter')).toMatch(/nur einer/)
+  })
+
+  it('muss mitgehen, wenn sonst niemand mitgeht', () => {
+    const g = freshDeal(['A', 'B', 'C'])
+    say(g, 'kratzen') // p1
+    const letzter = g.players[g.turn] // p2
+    say(g, 'letzter')
+    say(g, 'weiter') // p0
+
+    // Kein Mitgeher am Tisch: der Letzte wird gezwungen, ohne gefragt zu werden.
+    expect(g.awaitLetzter).toBe(false)
+    expect(g.calls[letzter.id]).toBe('mitgehen')
+    expect(g.phase).toBe('exchange')
+  })
+
+  it('darf frei entscheiden, sobald jemand mitgeht', () => {
+    const g = freshDeal(['A', 'B', 'C', 'D'])
+    say(g, 'kratzen') // p1
+    const letzter = g.players[g.turn] // p2
+    say(g, 'letzter')
+    say(g, 'mitgehen') // p3 — jetzt geht jemand mit
+    say(g, 'weiter') // p0
+
+    expect(g.awaitLetzter).toBe(true)
+    expect(g.players[g.turn].id).toBe(letzter.id)
+    expect(applyCall(g, letzter.id, 'weiter')).toBeNull()
+    expect(g.calls[letzter.id]).toBe('weiter')
+    expect(g.phase).toBe('exchange')
+  })
+
+  it('wird auch von einem Mitgeher aus der zweiten Chance freigespielt', () => {
+    const g = freshDeal(['A', 'B', 'C', 'D'])
+    say(g, 'weiter') // p1 — vor dem Kratzer, bekommt später nochmals die Wahl
+    say(g, 'kratzen') // p2
+    const letzter = g.players[g.turn] // p3
+    say(g, 'letzter')
+    say(g, 'weiter') // p0
+
+    // Erst die zweite Chance, dann der Letzte.
+    expect(g.secondChance).toEqual(['p1'])
+    expect(g.awaitLetzter).toBe(false)
+
+    applyCall(g, 'p1', 'mitgehen')
+    // Jetzt geht jemand mit, also darf der Letzte frei wählen.
+    expect(g.awaitLetzter).toBe(true)
+    expect(g.players[g.turn].id).toBe(letzter.id)
+  })
+})
+
 describe('Zweite Chance nach dem Kratzer', () => {
   const say = (g: Game, call: 'weiter' | 'kratzen' | 'mitgehen' | 'letzter') =>
     applyCall(g, g.players[g.turn].id, call)
@@ -616,23 +690,6 @@ describe('Zweite Chance nach dem Kratzer', () => {
 
     expect(g.secondChance).toEqual([])
     expect(g.phase).toBe('exchange')
-  })
-
-  it('der Letzte entscheidet erst nach den zweiten Chancen', () => {
-    const g = freshDeal(['A', 'B', 'C', 'D'])
-    say(g, 'weiter') // p1
-    say(g, 'letzter') // p2
-    say(g, 'kratzen') // p3
-    say(g, 'weiter') // p0
-
-    // Erst p1 nochmals fragen …
-    expect(g.secondChance).toEqual(['p1'])
-    expect(g.awaitLetzter).toBe(false)
-
-    applyCall(g, 'p1', 'mitgehen')
-    // … dann darf der Letzte frei wählen, weil schon jemand mitgeht.
-    expect(g.awaitLetzter).toBe(true)
-    expect(g.players[g.turn].id).toBe('p2')
   })
 
   it('ohne Kratzer wird niemand nochmals gefragt', () => {

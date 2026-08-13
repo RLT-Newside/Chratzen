@@ -73,7 +73,9 @@ export function Table({
 
   // Es kratzt nur einer: wer schon einen Kratzer am Tisch hat, kann nur mitgehen.
   const hasKratzer = others.some((p) => p.call === 'kratzen')
-  const hasLetzter = others.some((p) => p.call === 'letzter')
+  // "Letzter" lohnt sich nur, solange offen ist, ob jemand mitgeht.
+  const canLetzter =
+    hasKratzer && !others.some((p) => p.call === 'mitgehen' || p.call === 'letzter')
 
   return (
     <div className="px-4 pt-4 pb-6 animate-fade-in min-h-screen flex flex-col">
@@ -320,7 +322,7 @@ export function Table({
                   <Button disabled={!hasKratzer} onClick={() => onCall('mitgehen')}>
                     Mitgehen
                   </Button>
-                  <Button disabled={hasLetzter} onClick={() => onCall('letzter')}>
+                  <Button disabled={!canLetzter} onClick={() => onCall('letzter')}>
                     Letzter
                   </Button>
                   <Button onClick={() => onCall('weiter')}>Weiter</Button>

@@ -408,10 +408,9 @@ function nobodyPlays(g: Game) {
 function afterCalls(g: Game) {
   const kratzer = g.players.find((p) => g.calls[p.id] === 'kratzen')
 
+  // Ohne Kratzer gibt es nichts, wozu man mitginge — und "Letzter" konnte gar
+  // nicht angesagt werden, dafür braucht es ja einen Kratzer.
   if (!kratzer) {
-    // Ohne Kratzer gibt es nichts, wozu man mitginge — auch "Letzter" verfällt.
-    const letzter = g.players.find((p) => g.calls[p.id] === 'letzter')
-    if (letzter) g.calls[letzter.id] = 'weiter'
     nobodyPlays(g)
     return
   }
@@ -477,8 +476,12 @@ export function applyCall(g: Game, playerId: string, call: Call): string | null 
   if (call === 'mitgehen' && !others.includes('kratzen')) {
     return 'Mitgehen geht nur, wenn schon jemand gekratzt hat.'
   }
-  if (call === 'letzter' && others.includes('letzter')) {
-    return 'Es kann nur einer "Letzter" sagen.'
+  if (call === 'letzter') {
+    // "Letzter" heisst abwarten, ob noch jemand mitgeht. Das setzt voraus, dass
+    // es etwas zum Mitgehen gibt und noch niemand mitgegangen ist.
+    if (!others.includes('kratzen')) return 'Letzter geht erst, wenn jemand gekratzt hat.'
+    if (others.includes('mitgehen')) return 'Es geht schon jemand mit — jetzt entscheiden.'
+    if (others.includes('letzter')) return 'Es kann nur einer "Letzter" sagen.'
   }
 
   g.calls[playerId] = call
