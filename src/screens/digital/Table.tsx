@@ -66,7 +66,8 @@ export function Table({
     if (selecting || discarding) return toggle(id)
   }
 
-  const hasKratzer = game.players.some((p) => p.call === 'kratzen')
+  // Es kratzt nur einer: wer schon einen Kratzer am Tisch hat, kann nur mitgehen.
+  const hasKratzer = others.some((p) => p.call === 'kratzen')
   const hasLetzter = others.some((p) => p.call === 'letzter')
 
   return (
@@ -240,7 +241,11 @@ export function Table({
                 </>
               ) : (
                 <>
-                  <Button variant="primary" onClick={() => onCall('kratzen')}>
+                  <Button
+                    variant={hasKratzer ? 'subtle' : 'primary'}
+                    disabled={hasKratzer}
+                    onClick={() => onCall('kratzen')}
+                  >
                     Kratzen
                   </Button>
                   <Button disabled={!hasKratzer} onClick={() => onCall('mitgehen')}>

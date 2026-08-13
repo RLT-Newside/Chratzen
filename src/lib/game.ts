@@ -335,6 +335,9 @@ export function applyCall(g: Game, playerId: string, call: Call): string | null 
     return null
   }
 
+  if (call === 'kratzen' && others.includes('kratzen')) {
+    return 'Es kratzt nur einer — du kannst noch mitgehen.'
+  }
   if (call === 'mitgehen' && !others.includes('kratzen')) {
     return 'Mitgehen geht nur, wenn schon jemand gekratzt hat.'
   }

@@ -93,11 +93,18 @@ export function validateTricks(entries: Entry[]): string | null {
   return null
 }
 
-/** Ansagen sind gültig, wenn mitgegangen wird erst nachdem jemand gekratzt hat. */
-export function validateCalls(calls: Call[]): string | null {
-  if (calls.some((c) => c === 'letzter')) return 'Bitte "Letzter" noch auflösen.'
-  const kratzer = calls.filter((c) => c === 'kratzen').length
-  const mitgeher = calls.filter((c) => c === 'mitgehen').length
-  if (mitgeher > 0 && kratzer === 0) return 'Mitgehen geht nur, wenn jemand gekratzt hat.'
-  return null
+/**
+ * Es kratzt immer nur einer pro Runde. Setzt jemand neu an, fällt der bisherige
+ * Kratzer auf "weiter" zurück — im Companion steht die ganze Runde auf einem
+ * Bildschirm, die Änderung ist also sofort sichtbar.
+ */
+export function demoteOtherKratzer<T extends Call>(
+  calls: Record<string, T>,
+  keep: string,
+): Record<string, T> {
+  const out = { ...calls }
+  for (const id of Object.keys(out)) {
+    if (id !== keep && out[id] === 'kratzen') out[id] = 'weiter' as T
+  }
+  return out
 }

@@ -258,4 +258,22 @@ describe('Regelverstösse werden abgelehnt', () => {
     expect(playCard(g, active.id, cardId(g.hands[active.id][0]))).toMatch(/kein Ausspielen/)
     expect(applyCall(g, active.id, 'kratzen')).toBeNull()
   })
+
+  it('nach dem ersten Kratzer darf niemand mehr kratzen', () => {
+    const g = makeGame(['A', 'B', 'C'])
+    do {
+      g.pot = 0
+      for (const p of g.players) p.balance = 0
+      startRound(g)
+    } while (g.banner)
+
+    expect(applyCall(g, g.players[g.turn].id, 'kratzen')).toBeNull()
+
+    const second = g.players[g.turn]
+    expect(applyCall(g, second.id, 'kratzen')).toMatch(/nur einer/)
+    expect(g.calls[second.id]).toBe('weiter')
+    expect(applyCall(g, second.id, 'mitgehen')).toBeNull()
+
+    expect(g.players.filter((p) => g.calls[p.id] === 'kratzen')).toHaveLength(1)
+  })
 })

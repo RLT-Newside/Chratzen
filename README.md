@@ -106,7 +106,9 @@ Angesagt, getauscht und gestochen wird am Tisch. Die App modelliert den Ablauf
 bewusst nicht — kein Geber, kein Trumpf, keine Ansagerunde, kein Letzter, keine
 Bannerrunde. Pro Runde braucht sie nur zwei Angaben pro Spieler:
 
-- **Rolle** — raus / kratzt / mit (bestimmt die Strafschwelle: 2 bzw. 1 Stich)
+- **Rolle** — raus / kratzt / mit (bestimmt die Strafschwelle: 2 bzw. 1 Stich).
+  Kratzen ist exklusiv: tippst du es bei jemand anderem, fällt der bisherige
+  Kratzer auf *raus* zurück.
 - **Stiche** — 0 bis 4, müssen zusammen 4 ergeben
 
 Daraus fallen Ausschüttung, Bete und der neue Pott heraus. Hat niemand gespielt
@@ -116,6 +118,7 @@ mit Verlauf, manueller Korrektur und Rückgängig.
 ## Digitaler Modus: volle Regeln
 
 - **Kratzen** = mind. 2 Stiche, **Mitgehen** = mind. 1 Stich, **Weiter** = aussetzen.
+- Es **kratzt nur einer** pro Runde. Wer danach dran ist, kann nur noch mitgehen oder passen.
 - **Letzter**: muss mitgehen, wenn sonst niemand mitgeht — sonst freie Wahl.
 - **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein.
 - **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen.

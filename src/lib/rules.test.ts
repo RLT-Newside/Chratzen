@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { formatChf, splitByWeight } from './money'
-import { bannerCalls, letzterMustGo, settleRound, validateCalls, validateTricks } from './rules'
+import {
+  type Call,
+  bannerCalls,
+  demoteOtherKratzer,
+  letzterMustGo,
+  settleRound,
+  validateTricks,
+} from './rules'
 
 const e = (playerId: string, call: 'kratzen' | 'mitgehen' | 'weiter', tricks: number) => ({
   playerId,
@@ -102,9 +109,15 @@ describe('Ansagen', () => {
     expect(letzterMustGo(['kratzen', 'mitgehen', 'letzter'])).toBe(false)
   })
 
-  it('Mitgehen ohne Kratzer ist ungültig', () => {
-    expect(validateCalls(['mitgehen', 'weiter'])).toMatch(/gekratzt/)
-    expect(validateCalls(['kratzen', 'mitgehen'])).toBeNull()
+  it('es kratzt nur einer — ein neuer verdrängt den alten', () => {
+    const roles: Record<string, Call> = { a: 'kratzen', b: 'mitgehen', c: 'weiter' }
+    expect(demoteOtherKratzer({ ...roles, c: 'kratzen' }, 'c')).toEqual({
+      a: 'weiter',
+      b: 'mitgehen',
+      c: 'kratzen',
+    })
+    // Wer schon kratzt und nochmals tippt, bleibt Kratzer.
+    expect(demoteOtherKratzer(roles, 'a')).toEqual(roles)
   })
 
   it('Bannerrunde: Geber kratzt, Rest geht mit', () => {

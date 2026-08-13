@@ -1,6 +1,13 @@
 import { useCallback, useMemo } from 'react'
 import { ANTE_OPTIONS } from '../lib/money'
-import { type Call, type Entry, isPlaying, settleRound, validateTricks } from '../lib/rules'
+import {
+  type Call,
+  type Entry,
+  demoteOtherKratzer,
+  isPlaying,
+  settleRound,
+  validateTricks,
+} from '../lib/rules'
 import { usePersistedState } from './usePersistedState'
 
 export type Player = { id: string; name: string; balance: number }
@@ -130,12 +137,19 @@ export function useCompanion() {
 
   const setRole = useCallback(
     (id: string, role: Role) =>
-      setState((s) => ({
-        ...s,
-        roles: { ...s.roles, [id]: role },
+      setState((s) => {
+        // Es kratzt nur einer: ein neuer Kratzer verdrängt den bisherigen.
+        const roles =
+          role === 'kratzen'
+            ? demoteOtherKratzer({ ...s.roles, [id]: role }, id)
+            : { ...s.roles, [id]: role }
+
         // Wer raus ist, kann keine Stiche haben.
-        tricks: role === 'weiter' ? { ...s.tricks, [id]: 0 } : s.tricks,
-      })),
+        const tricks = { ...s.tricks }
+        for (const [pid, r] of Object.entries(roles)) if (r === 'weiter') tricks[pid] = 0
+
+        return { ...s, roles, tricks }
+      }),
     [setState],
   )
 
