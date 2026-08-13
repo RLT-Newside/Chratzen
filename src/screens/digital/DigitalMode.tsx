@@ -42,6 +42,7 @@ export function DigitalMode({ onExit }: { onExit: () => void }) {
           onExchange={net.exchange}
           onSleeper={net.sleeper}
           onPlay={net.play}
+          onBlind={net.blind}
           onNext={net.next}
           onKick={net.kick}
           onForce={net.force}

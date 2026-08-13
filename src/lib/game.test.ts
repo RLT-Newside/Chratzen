@@ -7,10 +7,13 @@ import {
   applySleeperDiscard,
   createGame,
   currentActor,
+  declareBlind,
+  declineBlind,
   forceMove,
   kickPlayer,
   nextRound,
   playCard,
+  redact,
   startRound,
 } from './game'
 import { TRICKS_PER_ROUND, isPlaying } from './rules'
@@ -21,11 +24,31 @@ function makeGame(names: string[], ante = 100): Game {
   return g
 }
 
+/**
+ * Teilt aus, bis es keine Bannerrunde ist, und lehnt den Blinden ab — für alle
+ * Tests, die den normalen Ansageablauf prüfen wollen.
+ */
+function freshDeal(names: string[], ante = 100): Game {
+  const g = makeGame(names, ante)
+  do {
+    g.pot = 0
+    for (const p of g.players) p.balance = 0
+    startRound(g)
+  } while (g.banner)
+  declineBlind(g, g.players[g.dealerIndex].id)
+  return g
+}
+
 /** Spielt eine Runde mit zufälligen, aber immer legalen Zügen bis zur Abrechnung. */
 function autoplay(g: Game) {
   for (let guard = 0; guard < 2000 && g.phase !== 'settle'; guard++) {
     expectNoDuplicates(g)
-    if (g.phase === 'calls') {
+    if (g.phase === 'blind') {
+      // Mal so, mal so — beide Wege müssen sauber durchlaufen.
+      const dealer = g.players[g.dealerIndex]
+      const decide = Math.random() < 0.3 ? declareBlind : declineBlind
+      expect(decide(g, dealer.id)).toBeNull()
+    } else if (g.phase === 'calls') {
       const p = g.players[g.turn]
       const hasKratzer = g.players.some((x) => g.calls[x.id] === 'kratzen')
       const call = g.awaitLetzter
@@ -115,12 +138,7 @@ describe('Austeilen', () => {
 
 describe('Alle passen', () => {
   it('deckt einen neuen Trumpf auf, ohne die Hände neu zu geben', () => {
-    const g = makeGame(['A', 'B', 'C'])
-    do {
-      g.pot = 0
-      for (const p of g.players) p.balance = 0
-      startRound(g)
-    } while (g.banner)
+    const g = freshDeal(['A', 'B', 'C'])
 
     const before = cardId(g.trump as Card)
     const handsBefore = g.players.map((p) => g.hands[p.id].map(cardId).join())
@@ -134,12 +152,7 @@ describe('Alle passen', () => {
   })
 
   it('mischt nach dem 3. Mal neu und alle legen nochmals ein', () => {
-    const g = makeGame(['A', 'B', 'C'])
-    do {
-      g.pot = 0
-      for (const p of g.players) p.balance = 0
-      startRound(g)
-    } while (g.banner)
+    const g = freshDeal(['A', 'B', 'C'])
 
     let guard = 0
     while (g.flips < 2 && guard++ < 20) {
@@ -238,12 +251,7 @@ describe('Host-Rechte', () => {
   })
 
   it('Zug erzwingen geht nur als Host und nur wenn der Server es freigibt', () => {
-    const g = makeGame(['A', 'B', 'C'])
-    do {
-      g.pot = 0
-      for (const p of g.players) p.balance = 0
-      startRound(g)
-    } while (g.banner)
+    const g = freshDeal(['A', 'B', 'C'])
 
     expect(forceMove(g, 'p1')).toMatch(/Nur der Host/)
     expect(forceMove(g, 'p0')).toMatch(/zu früh/)
@@ -285,6 +293,7 @@ describe('Kartenbestand', () => {
     const dealerHand = g.hands[g.players[g.dealerIndex].id].map(cardId)
     expect(dealerHand).toContain(cardId(g.trump as Card))
 
+    declineBlind(g, g.players[g.dealerIndex].id)
     for (let flip = 0; flip < 3 && !g.banner; flip++) {
       for (let k = 0; k < g.players.length && g.phase === 'calls'; k++) {
         applyCall(g, g.players[g.turn].id, 'weiter')
@@ -303,14 +312,127 @@ describe('Kartenbestand', () => {
   })
 })
 
-describe('Der Kratzer eröffnet', () => {
-  it('tauscht zuerst und spielt den ersten Stich aus', () => {
-    const g = makeGame(['A', 'B', 'C', 'D'])
+describe('Blinder', () => {
+  /** Teilt neu aus, bis es keine Bannerrunde ist — die überspringt den Blinden. */
+  function dealt(names: string[]): Game {
+    const g = makeGame(names)
     do {
       g.pot = 0
       for (const p of g.players) p.balance = 0
       startRound(g)
     } while (g.banner)
+    return g
+  }
+
+  it('bietet ihn direkt nach dem Austeilen nur dem Geber an', () => {
+    const g = dealt(['A', 'B', 'C'])
+    expect(g.phase).toBe('blind')
+    expect(g.blindOffer).toBe(g.players[g.dealerIndex].id)
+    expect(declareBlind(g, g.players[1].id)).toMatch(/Nur der Geber/)
+  })
+
+  it('zeigt dem Geber seine Karten nicht, solange er entscheidet', () => {
+    const g = dealt(['A', 'B', 'C'])
+    const dealer = g.players[g.dealerIndex]
+
+    const mine = redact(g, dealer.id)
+    expect(mine.hand).toEqual([])
+    expect(mine.blindOffer).toBe(true)
+    // Auch sonst darf die Hand nirgends im Zustand auftauchen.
+    expect(JSON.stringify(mine)).not.toContain(cardId(g.hands[dealer.id][1]))
+
+    // Die anderen sehen ihre eigenen Karten ganz normal.
+    const other = redact(g, g.players[1].id)
+    expect(other.hand).toHaveLength(4)
+    expect(other.blindOffer).toBe(false)
+  })
+
+  it('gibt Trumpf plus vier frische Karten und kratzt automatisch', () => {
+    const g = dealt(['A', 'B', 'C'])
+    const dealer = g.players[g.dealerIndex]
+    const alt = g.hands[dealer.id].map(cardId)
+
+    expect(declareBlind(g, dealer.id)).toBeNull()
+
+    const neu = g.hands[dealer.id].map(cardId)
+    expect(neu).toHaveLength(5)
+    expect(neu).toContain(cardId(g.trump as Card))
+    // Die drei ungesehenen Karten sind weg.
+    expect(neu.filter((c) => alt.includes(c))).toEqual([cardId(g.trump as Card)])
+
+    expect(g.blind).toBe(true)
+    expect(g.calls[dealer.id]).toBe('kratzen')
+    expect(g.phase).toBe('calls')
+    expectNoDuplicates(g)
+  })
+
+  it('lässt die anderen normal ansagen, ohne zweite Chance', () => {
+    const g = dealt(['A', 'B', 'C'])
+    const dealer = g.players[g.dealerIndex]
+    declareBlind(g, dealer.id)
+
+    // Der Geber hat als Erster gesprochen — niemand wird nochmals gefragt.
+    expect(applyCall(g, g.players[g.turn].id, 'kratzen')).toMatch(/nur einer/)
+    expect(applyCall(g, g.players[g.turn].id, 'mitgehen')).toBeNull()
+    expect(applyCall(g, g.players[g.turn].id, 'weiter')).toBeNull()
+    expect(g.secondChance).toEqual([])
+    expect(g.phase).toBe('exchange')
+  })
+
+  it('behält fünf Karten über den Tausch und wirft dann eine ab', () => {
+    const g = dealt(['A', 'B'])
+    const dealer = g.players[g.dealerIndex]
+    declareBlind(g, dealer.id)
+    while (g.phase === 'calls') applyCall(g, g.players[g.turn].id, 'weiter')
+
+    expect(g.phase).toBe('exchange')
+    // Der Blinde tauscht ganz normal — vier Karten, aber keinen Nachschlag.
+    expect(applyExchange(g, dealer.id, g.hands[dealer.id].slice(0, 4).map(cardId))).toBeNull()
+    expect(g.hands[dealer.id]).toHaveLength(5)
+
+    while (g.phase === 'exchange') applyExchange(g, g.players[g.turn].id, [])
+    expect(g.phase).toBe('sleeper')
+    expect(g.sleepers).toContain(dealer.id)
+
+    applySleeperDiscard(g, dealer.id, cardId(g.hands[dealer.id][0]))
+    while (g.phase === 'sleeper') {
+      const id = g.sleepers[0]
+      applySleeperDiscard(g, id, cardId(g.hands[id][0]))
+    }
+    expect(g.hands[dealer.id]).toHaveLength(4)
+    expectNoDuplicates(g)
+  })
+
+  it('nach dem Verzicht geht es normal weiter', () => {
+    const g = dealt(['A', 'B', 'C'])
+    const dealer = g.players[g.dealerIndex]
+    expect(declineBlind(g, g.players[1].id)).toMatch(/der Geber/)
+    expect(declineBlind(g, dealer.id)).toBeNull()
+
+    expect(g.phase).toBe('calls')
+    expect(g.blind).toBe(false)
+    expect(g.callsLeft).toBe(3)
+    expect(redact(g, dealer.id).hand).toHaveLength(4)
+    // Links vom Geber fängt an.
+    expect(g.turn).toBe((g.dealerIndex + 1) % 3)
+  })
+
+  it('wird nach einem Trumpfwechsel nicht mehr angeboten', () => {
+    const g = dealt(['A', 'B', 'C'])
+    declineBlind(g, g.players[g.dealerIndex].id)
+    for (let k = 0; k < 3; k++) applyCall(g, g.players[g.turn].id, 'weiter')
+
+    expect(g.flips).toBe(1)
+    expect(g.blindOffer).toBeNull()
+    // Der nachgezogene Trumpf kann selbst ein Banner sein — dann geht es direkt
+    // in den Tausch. Angeboten wird der Blinde so oder so nicht mehr.
+    expect(g.phase).toBe(g.banner ? 'exchange' : 'calls')
+  })
+})
+
+describe('Der Kratzer eröffnet', () => {
+  it('tauscht zuerst und spielt den ersten Stich aus', () => {
+    const g = freshDeal(['A', 'B', 'C', 'D'])
 
     // p1 ist links vom Geber und passt; p2 kratzt.
     applyCall(g, g.players[g.turn].id, 'weiter')
@@ -335,22 +457,11 @@ describe('Der Kratzer eröffnet', () => {
 })
 
 describe('Zweite Chance nach dem Kratzer', () => {
-  /** Deckt neu auf, bis es keine Bannerrunde ist — die setzt die Ansagen fest. */
-  function freshRound(names: string[]): Game {
-    const g = makeGame(names)
-    do {
-      g.pot = 0
-      for (const p of g.players) p.balance = 0
-      startRound(g)
-    } while (g.banner)
-    return g
-  }
-
   const say = (g: Game, call: 'weiter' | 'kratzen' | 'mitgehen' | 'letzter') =>
     applyCall(g, g.players[g.turn].id, call)
 
   it('fragt nochmals, wer vor dem Kratzer gepasst hat', () => {
-    const g = freshRound(['A', 'B', 'C'])
+    const g = freshDeal(['A', 'B', 'C'])
     // Reihenfolge ab links vom Geber: p1, p2, p0.
     expect(say(g, 'weiter')).toBeNull() // p1 — konnte noch gar nicht mitgehen
     expect(say(g, 'kratzen')).toBeNull() // p2
@@ -367,7 +478,7 @@ describe('Zweite Chance nach dem Kratzer', () => {
   })
 
   it('lässt in der zweiten Chance nicht mehr kratzen', () => {
-    const g = freshRound(['A', 'B', 'C'])
+    const g = freshDeal(['A', 'B', 'C'])
     say(g, 'weiter')
     say(g, 'kratzen')
     say(g, 'weiter')
@@ -378,7 +489,7 @@ describe('Zweite Chance nach dem Kratzer', () => {
   })
 
   it('darf auch beim zweiten Mal passen', () => {
-    const g = freshRound(['A', 'B', 'C'])
+    const g = freshDeal(['A', 'B', 'C'])
     say(g, 'weiter')
     say(g, 'kratzen')
     say(g, 'weiter')
@@ -389,7 +500,7 @@ describe('Zweite Chance nach dem Kratzer', () => {
   })
 
   it('fragt mehrere der Reihe nach', () => {
-    const g = freshRound(['A', 'B', 'C', 'D'])
+    const g = freshDeal(['A', 'B', 'C', 'D'])
     // Reihenfolge: p1, p2, p3, p0.
     say(g, 'weiter')
     say(g, 'weiter')
@@ -407,7 +518,7 @@ describe('Zweite Chance nach dem Kratzer', () => {
   })
 
   it('fragt niemanden nochmals, wenn der Kratzer zuerst dran war', () => {
-    const g = freshRound(['A', 'B', 'C'])
+    const g = freshDeal(['A', 'B', 'C'])
     say(g, 'kratzen') // p1
     say(g, 'weiter')
     say(g, 'weiter')
@@ -417,7 +528,7 @@ describe('Zweite Chance nach dem Kratzer', () => {
   })
 
   it('der Letzte entscheidet erst nach den zweiten Chancen', () => {
-    const g = freshRound(['A', 'B', 'C', 'D'])
+    const g = freshDeal(['A', 'B', 'C', 'D'])
     say(g, 'weiter') // p1
     say(g, 'letzter') // p2
     say(g, 'kratzen') // p3
@@ -434,7 +545,7 @@ describe('Zweite Chance nach dem Kratzer', () => {
   })
 
   it('ohne Kratzer wird niemand nochmals gefragt', () => {
-    const g = freshRound(['A', 'B', 'C'])
+    const g = freshDeal(['A', 'B', 'C'])
     const trumpBefore = g.trump
     say(g, 'weiter')
     say(g, 'weiter')
@@ -448,12 +559,7 @@ describe('Zweite Chance nach dem Kratzer', () => {
 
 describe('Regelverstösse werden abgelehnt', () => {
   it('nicht am Zug, falsche Karte, Mitgehen ohne Kratzer', () => {
-    const g = makeGame(['A', 'B', 'C'])
-    do {
-      g.pot = 0
-      for (const p of g.players) p.balance = 0
-      startRound(g)
-    } while (g.banner)
+    const g = freshDeal(['A', 'B', 'C'])
 
     const active = g.players[g.turn]
     const other = g.players[(g.turn + 1) % 3]
@@ -464,12 +570,7 @@ describe('Regelverstösse werden abgelehnt', () => {
   })
 
   it('nach dem ersten Kratzer darf niemand mehr kratzen', () => {
-    const g = makeGame(['A', 'B', 'C'])
-    do {
-      g.pot = 0
-      for (const p of g.players) p.balance = 0
-      startRound(g)
-    } while (g.banner)
+    const g = freshDeal(['A', 'B', 'C'])
 
     expect(applyCall(g, g.players[g.turn].id, 'kratzen')).toBeNull()
 

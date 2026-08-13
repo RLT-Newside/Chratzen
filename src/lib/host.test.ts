@@ -161,7 +161,9 @@ describe('TableHost', () => {
       const game = state?.game
       if (!game || game.phase === 'settle') break
 
-      if (game.yourTurn && game.phase === 'calls') {
+      if (game.blindOffer) {
+        state = pick(host.receive('c-anna', { t: 'blind', take: false }), 'c-anna', 'state')
+      } else if (game.yourTurn && game.phase === 'calls') {
         state = pick(host.receive('c-anna', { t: 'call', call: 'weiter' }), 'c-anna', 'state')
       } else if (game.yourTurn && game.phase === 'play') {
         state = pick(

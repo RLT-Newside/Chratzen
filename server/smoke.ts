@@ -64,11 +64,12 @@ function drive(c: Client, onSettle: () => void) {
     if (msg.t !== 'state') return
     const game = msg.game
     c.game = game
-    const key = `${game.round}|${game.phase}|${game.turn}|${game.trick.length}|${game.hand.length}`
+    const key = `${game.round}|${game.phase}|${game.turn}|${game.trick.length}|${game.hand.length}|${game.blindOffer}`
     if (c.acted.has(key)) return
     c.acted.add(key)
 
     if (game.phase === 'settle') return onSettle()
+    if (game.blindOffer) return send(c, { t: 'blind', take: false })
     if (game.mustDiscardSleeper) {
       return send(c, { t: 'sleeper', card: `${game.hand[0].suit}-${game.hand[0].rank}` })
     }
@@ -116,6 +117,15 @@ async function main() {
   // Nächste Runde austeilen lassen, damit der Reconnect echte Karten prüft.
   for (const c of clients) c.onMessage.length = 0
   const beat = clients[1]
+
+  // Der Geber wechselt reihum; wer neu dran ist, sieht seine Hand erst nach der
+  // Blind-Entscheidung. Also erst ablehnen, dann auf die Karten warten.
+  for (const c of clients) {
+    c.onMessage.push((m) => {
+      if (m.t === 'state' && m.game.blindOffer) send(c, { t: 'blind', take: false })
+    })
+  }
+
   const dealt = waitFor(
     beat,
     (m) => m.t === 'state' && m.game.phase !== 'settle' && m.game.hand.length === 4,

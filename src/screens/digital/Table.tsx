@@ -2,7 +2,7 @@ import { LogOut, Shield, UserMinus, UserPlus } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CardBack, PlayingCard } from '../../components/PlayingCard'
 import { Button, Card } from '../../components/ui'
-import { type CardId, cardId, sortHand } from '../../lib/cards'
+import { type CardId, RANK_NAME, cardId, sortHand } from '../../lib/cards'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
 import type { Call } from '../../lib/rules'
@@ -20,6 +20,7 @@ export function Table({
   onExchange,
   onSleeper,
   onPlay,
+  onBlind,
   onNext,
   onKick,
   onForce,
@@ -30,6 +31,7 @@ export function Table({
   onExchange: (ids: CardId[]) => void
   onSleeper: (id: CardId) => void
   onPlay: (id: CardId) => void
+  onBlind: (take: boolean) => void
   onNext: () => void
   onKick: (playerId: string) => void
   onForce: () => void
@@ -229,13 +231,47 @@ export function Table({
       )}
       {hand.length === 0 && game.phase !== 'settle' && (
         <div className="flex justify-center gap-1.5 pb-4 pt-2 opacity-40">
-          <CardBack />
-          <CardBack />
+          {game.blindOffer ? (
+            // Verdeckt, weil der Geber sie noch nicht sehen darf.
+            [0, 1, 2, 3].map((i) => <CardBack key={i} size="md" />)
+          ) : (
+            <>
+              <CardBack />
+              <CardBack />
+            </>
+          )}
         </div>
       )}
 
       {/* Aktionsleiste */}
       <div className="safe-bottom">
+        {game.phase === 'blind' &&
+          (game.blindOffer ? (
+            <div>
+              <p className="text-center text-xs text-white/50 leading-relaxed mb-3">
+                Du hast ausgeteilt und nur den Trumpf gesehen. Beim Blinden kratzt du,
+                ohne deine Karten zu kennen — dafür behältst du den{' '}
+                {RANK_NAME[game.trump?.rank ?? 6]} und bekommst vier frische dazu. Eine
+                davon wirfst du vor dem Ausspielen wieder ab.
+              </p>
+              <div className="flex gap-2">
+                <Button size="lg" className="flex-1" onClick={() => onBlind(false)}>
+                  Karten anschauen
+                </Button>
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="flex-1"
+                  onClick={() => onBlind(true)}
+                >
+                  Blinden machen
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <WaitLine name={active?.name} what="überlegt sich einen Blinden" />
+          ))}
+
         {game.phase === 'calls' &&
           (game.yourTurn ? (
             <div className="grid grid-cols-4 gap-1.5">

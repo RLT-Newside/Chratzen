@@ -25,7 +25,7 @@ import {
   settleRound,
 } from './rules'
 
-export type GamePhase = 'lobby' | 'calls' | 'exchange' | 'sleeper' | 'play' | 'settle'
+export type GamePhase = 'lobby' | 'blind' | 'calls' | 'exchange' | 'sleeper' | 'play' | 'settle'
 
 export type GPlayer = {
   id: string
@@ -69,6 +69,14 @@ export type Game = {
    * gab es ja noch niemanden, mit dem man hätte mitgehen können.
    */
   secondChance: string[]
+  /**
+   * Der Geber hat den Trumpf umgedreht und entscheidet, ob er einen Blinden
+   * ansagt. Solange das offen ist, bekommt er seine eigene Hand nicht zu sehen
+   * — sonst wäre "blind" nur ein Wort.
+   */
+  blindOffer: string | null
+  /** Der Geber hat blind gekratzt. */
+  blind: boolean
   awaitLetzter: boolean
   exchanged: Record<string, boolean>
   /** Spieler mit 5 Karten, die noch eine Schlafkarte abwerfen müssen. */
@@ -106,6 +114,8 @@ export function createGame(hostId: string, ante: number): Game {
     callsLeft: 0,
     callOrder: [],
     secondChance: [],
+    blindOffer: null,
+    blind: false,
     awaitLetzter: false,
     exchanged: {},
     sleepers: [],
@@ -148,6 +158,7 @@ function revealTrump(g: Game, card: Card, fromHand: boolean) {
   g.awaitLetzter = false
   g.callOrder = []
   g.secondChance = []
+  g.blindOffer = null
   g.turn = left(g, g.dealerIndex)
   g.callsLeft = g.players.length
   g.banner = card.rank === BANNER
@@ -159,9 +170,60 @@ function revealTrump(g: Game, card: Card, fromHand: boolean) {
     })
     g.message = 'Bannerrunde! Der Geber kratzt, alle anderen gehen mit.'
     beginExchange(g)
-  } else {
-    g.phase = 'calls'
+    return
   }
+
+  // Nur direkt nach dem Austeilen: der Geber hat erst den Trumpf gesehen und
+  // darf blind kratzen. Nach einem Neuaufdecken kennt er seine Karten längst.
+  if (fromHand) {
+    g.phase = 'blind'
+    g.blindOffer = g.players[g.dealerIndex].id
+    g.turn = g.dealerIndex
+    return
+  }
+  g.phase = 'calls'
+}
+
+/**
+ * Blinder: der Geber verpflichtet sich auf 2 Stiche, ohne seine Karten gesehen
+ * zu haben. Dafür behält er die Trumpfkarte und bekommt vier frische dazu —
+ * fünf Karten, von denen vor dem Ausspielen eine verdeckt weggeht.
+ */
+export function declareBlind(g: Game, playerId: string): string | null {
+  if (g.phase !== 'blind') return 'Gerade kein Blinder möglich.'
+  if (g.blindOffer !== playerId) return 'Nur der Geber kann blind kratzen.'
+
+  const trumpId = cardId(g.trump as Card)
+  const hand = g.hands[playerId] ?? []
+  const keep = hand.filter((c) => cardId(c) === trumpId)
+  if (keep.length === 0) return 'Die Trumpfkarte liegt nicht mehr beim Geber.'
+
+  for (const c of hand.filter((x) => cardId(x) !== trumpId)) g.discards.push(c)
+  g.hands[playerId] = keep
+  for (let k = 0; k < 4; k++) g.hands[playerId].push(draw(g))
+
+  g.blind = true
+  g.blindOffer = null
+  g.calls[playerId] = 'kratzen'
+  // Der Geber hat als Erster gesprochen — deshalb bekommt niemand eine zweite
+  // Chance, alle anderen sagen ohnehin nach ihm an.
+  g.callOrder = [playerId]
+  g.callsLeft = g.players.length - 1
+  g.phase = 'calls'
+  g.turn = left(g, g.dealerIndex)
+  g.message = `${g.players[g.dealerIndex].name} macht einen Blinden und kratzt.`
+  return null
+}
+
+/** Der Geber verzichtet, schaut seine Karten an, und es geht normal weiter. */
+export function declineBlind(g: Game, playerId: string): string | null {
+  if (g.phase !== 'blind') return 'Gerade steht kein Blinder zur Wahl.'
+  if (g.blindOffer !== playerId) return 'Das entscheidet der Geber.'
+  g.blindOffer = null
+  g.phase = 'calls'
+  g.turn = left(g, g.dealerIndex)
+  g.callsLeft = g.players.length
+  return null
 }
 
 /** Karten einzeln reihum austeilen; die letzte Karte des Gebers ist der Trumpf. */
@@ -174,6 +236,7 @@ function deal(g: Game) {
   g.exchanged = {}
   g.sleepers = []
   g.trick = []
+  g.blind = false
 
   let last: Card | null = null
   for (let round = 0; round < 4; round++) {
@@ -252,6 +315,7 @@ export function kickPlayer(g: Game, hostId: string, targetId: string): string | 
 
 /** Wer ist gerade am Zug (in der Schlafkarten-Phase der erste offene Sleeper)? */
 export function currentActor(g: Game): GPlayer | null {
+  if (g.phase === 'blind') return g.players.find((p) => p.id === g.blindOffer) ?? null
   if (g.phase === 'sleeper') return g.players.find((p) => p.id === g.sleepers[0]) ?? null
   if (g.phase === 'lobby' || g.phase === 'settle') return null
   return g.players[g.turn] ?? null
@@ -269,6 +333,8 @@ export function forceMove(g: Game, hostId: string): string | null {
   if (!actor) return 'Gerade ist niemand am Zug.'
 
   switch (g.phase) {
+    case 'blind':
+      return declineBlind(g, actor.id)
     case 'calls':
       return applyCall(g, actor.id, 'weiter')
     case 'exchange':
@@ -429,10 +495,12 @@ export function applyExchange(g: Game, playerId: string, discard: CardId[]): str
   g.hands[playerId] = hand.filter((c) => !ids.has(cardId(c)))
   for (const c of hand.filter((c) => ids.has(cardId(c)))) g.discards.push(c)
 
-  // Schlafkarte: wer alle 4 tauscht, bekommt 5 neue und wirft danach 1 verdeckt ab.
-  const drawCount = discard.length === 4 ? 5 : discard.length
+  // Schlafkarte: wer seine ganze Hand tauscht, bekommt eine Karte mehr zurück.
+  // Der Blinde hat schon fünf und tauscht nie alles — er kriegt keinen Nachschlag.
+  const drawCount = discard.length === hand.length ? discard.length + 1 : discard.length
   for (let k = 0; k < drawCount; k++) g.hands[playerId].push(draw(g))
-  if (drawCount === 5) g.sleepers.push(playerId)
+  // Wer mit mehr als vier Karten dasteht, wirft vor dem Ausspielen eine ab.
+  if (g.hands[playerId].length > TRICKS_PER_ROUND) g.sleepers.push(playerId)
 
   g.exchanged[playerId] = true
 
@@ -548,6 +616,10 @@ export type ClientGame = {
   awaitLetzter: boolean
   /** Du hast vor dem Kratzer gepasst und wirst nochmals gefragt. */
   secondChance: boolean
+  /** Du bist der Geber und entscheidest über den Blinden — Hand noch verdeckt. */
+  blindOffer: boolean
+  /** In dieser Runde wurde blind gekratzt. */
+  blind: boolean
   yourTurn: boolean
   legal: CardId[]
   mustDiscardSleeper: boolean
@@ -566,7 +638,9 @@ export type ClientGame = {
 }
 
 export function redact(g: Game, youId: string): ClientGame {
-  const hand = g.hands[youId] ?? []
+  // Solange der Geber über den Blinden entscheidet, sieht er seine Karten nicht
+  // — sonst könnte er nachschauen und trotzdem "blind" ansagen.
+  const hand = g.blindOffer === youId ? [] : (g.hands[youId] ?? [])
   const yourTurn = g.players[g.turn]?.id === youId
   const lead = g.trick[0]?.card.suit ?? null
 
@@ -592,6 +666,8 @@ export function redact(g: Game, youId: string): ClientGame {
     turn: g.turn,
     awaitLetzter: g.awaitLetzter,
     secondChance: g.secondChance.includes(youId),
+    blindOffer: g.blindOffer === youId,
+    blind: g.blind,
     yourTurn: yourTurn && g.phase !== 'sleeper',
     legal:
       g.phase === 'play' && yourTurn ? legalCards(hand, lead as Suit | null).map(cardId) : [],

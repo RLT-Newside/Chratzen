@@ -15,6 +15,8 @@ import {
   applySleeperDiscard,
   createGame,
   currentActor,
+  declareBlind,
+  declineBlind,
   forceMove,
   kickPlayer,
   nextRound,
@@ -248,6 +250,9 @@ export class TableHost {
         else if (g.players.length < 2) err = 'Mindestens 2 Spieler.'
         else startRound(g)
         break
+      case 'blind':
+        err = msg.take ? declareBlind(g, me) : declineBlind(g, me)
+        break
       case 'call':
         err = applyCall(g, me, msg.call)
         break
@@ -315,6 +320,11 @@ export class TableHost {
     let err: string | null = null
 
     switch (g.phase) {
+      case 'blind':
+        // ponytail: Bots verzichten immer. Bewerten könnten sie den Blinden nur,
+        // indem sie in die eigene Hand schauen — genau das verbietet die Regel.
+        err = declineBlind(g, actor.id)
+        break
       case 'calls':
         err = applyCall(
           g,
@@ -349,7 +359,8 @@ export class TableHost {
 
   private fallbackMove(g: Game, id: string, hand: Card[]) {
     const lead = g.trick[0]?.card.suit ?? null
-    if (g.phase === 'calls') applyCall(g, id, 'weiter')
+    if (g.phase === 'blind') declineBlind(g, id)
+    else if (g.phase === 'calls') applyCall(g, id, 'weiter')
     else if (g.phase === 'exchange') applyExchange(g, id, [])
     else if (g.phase === 'sleeper' && hand[0]) applySleeperDiscard(g, id, cardId(hand[0]))
     else if (g.phase === 'play') {

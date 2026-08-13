@@ -161,6 +161,7 @@ export function useOnline() {
       send({ t: 'join', code: roomCode.toUpperCase(), name }),
     leave,
     start: () => send({ t: 'start' }),
+    blind: (take: boolean) => send({ t: 'blind', take }),
     call: (call: Call) => send({ t: 'call', call }),
     exchange: (cards: string[]) => send({ t: 'exchange', cards }),
     sleeper: (card: string) => send({ t: 'sleeper', card }),

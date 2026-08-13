@@ -14,6 +14,7 @@ export type ClientMsg =
   | { t: 'join'; code: string; name: string }
   | { t: 'rejoin'; code: string; token: string }
   | { t: 'start' }
+  | { t: 'blind'; take: boolean }
   | { t: 'call'; call: Call }
   | { t: 'exchange'; cards: CardId[] }
   | { t: 'sleeper'; card: CardId }

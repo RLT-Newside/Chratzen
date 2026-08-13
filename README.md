@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 35 Unit-Tests (Regeln, Engine, Tischwirt)
+npm test         # 82 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -76,6 +76,7 @@ Draht sprechen kann.
 | `{t:'join', code, name}` | beitreten |
 | `{t:'rejoin', code, token}` | nach Abbruch zurück an den Platz |
 | `{t:'start'}` | Partie starten (nur Host) |
+| `{t:'blind', take}` | Blinden annehmen oder ablehnen (nur Geber) |
 | `{t:'call', call}` | `kratzen` / `mitgehen` / `weiter` / `letzter` |
 | `{t:'exchange', cards}` | 0–4 Karten tauschen |
 | `{t:'sleeper', card}` | Schlafkarte abwerfen |
@@ -158,6 +159,14 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
   entscheidet zuletzt, also nach den zweiten Chancen.
 - **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein.
 - **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen.
+- **Blinder**: Nur der Geber, und nur direkt nach dem Austeilen — er hat da erst den
+  Trumpf gesehen. Er kratzt, ohne seine Karten zu kennen; dafür behält er die
+  Trumpfkarte und bekommt vier frische dazu. Vor dem Ausspielen wirft er eine der
+  fünf verdeckt ab. Tausch und Abrechnung laufen ganz normal.
+
+  Damit „blind" nicht bloss ein Wort ist, hält der Server dem Geber seine eigene
+  Hand zurück, bis er sich entschieden hat — nachschauen und dann ansagen geht nicht.
+  Nach einem Trumpfwechsel entfällt das Angebot, da kennt er seine Karten längst.
 - Austeilen einzeln reihum, 4 Karten; die letzte Karte des Gebers wird als Trumpf aufgedeckt.
 - **Tausch** 0–4 Karten. Wer alle 4 tauscht, zieht 5 und wirft vor dem Ausspielen
   eine **Schlafkarte** verdeckt ab.
@@ -188,6 +197,9 @@ Karten und vier Stichen bringt Suchen wenig:
 - **Tausch**: Trümpfe und Könige/Asse bleiben, der Rest fliegt.
 - **Ausspielen**: vorne die stärkste Karte, sonst den Stich möglichst billig
   gewinnen, und wenn er nicht zu holen ist, die schwächste Karte abwerfen.
+
+Beim Blinden verzichten Bots grundsätzlich: bewerten könnten sie ihn nur, indem
+sie in die eigene Hand schauen — genau das verbietet die Regel.
 
 Bots werden nie Host — geht der Host offline, erbt ein Mensch. Lehnt die Engine
 einen Bot-Zug einmal ab, springt eine garantiert legale Notvariante ein, damit
