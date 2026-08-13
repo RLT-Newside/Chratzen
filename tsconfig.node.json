@@ -12,5 +12,8 @@
     "strict": true,
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "server", "src/lib"]
+  "include": ["vite.config.ts", "server", "src/lib"],
+  // transport.ts ist reiner Browser-Code (WebSocket, location, Capacitor) und
+  // wird vom Server nie importiert.
+  "exclude": ["src/lib/transport.ts", "src/lib/*.test.ts"]
 }

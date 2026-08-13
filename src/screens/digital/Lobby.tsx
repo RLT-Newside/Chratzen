@@ -3,26 +3,30 @@ import { useState } from 'react'
 import { Button, Card, SectionTitle } from '../../components/ui'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
+import type { HostInfo } from '../../lib/transport'
 
 export function Lobby({
   game,
   code,
+  hostInfo,
   onStart,
   onKick,
   onLeave,
 }: {
   game: ClientGame
   code: string
+  hostInfo: HostInfo | null
   onStart: () => void
   onKick: (playerId: string) => void
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState(false)
   const isHost = game.youId === game.hostId
+  const address = hostInfo?.ip ? `${hostInfo.ip}:${hostInfo.port}` : null
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(code)
+      await navigator.clipboard.writeText(address ? `${address} · ${code}` : code)
       setCopied(true)
       setTimeout(() => setCopied(false), 1600)
     } catch {
@@ -44,11 +48,27 @@ export function Lobby({
         <p className="font-heading text-7xl tracking-[0.2em] text-brand leading-none mt-2 pot-glow">
           {code}
         </p>
+        {address && (
+          <>
+            <p className="label-caption mt-5">Adresse für die anderen</p>
+            <p className="font-heading text-3xl tracking-wider text-white/85 leading-none mt-1 tabular">
+              {address}
+            </p>
+          </>
+        )}
         <Button size="sm" className="mt-4 inline-flex items-center gap-2" onClick={copy}>
           {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-          {copied ? 'Kopiert' : 'Code kopieren'}
+          {copied ? 'Kopiert' : address ? 'Adresse & Code kopieren' : 'Code kopieren'}
         </Button>
       </Card>
+
+      {address && (
+        <p className="text-center text-xs text-white/40 mt-3 leading-relaxed">
+          Dieses Gerät führt den Tisch. Die anderen öffnen Chratzen → Digital → Server auf{' '}
+          <span className="text-white/70">{address}</span> setzen und mit dem Code beitreten.
+          Bildschirm bleibt an, solange der Tisch läuft.
+        </p>
+      )}
 
       <p className="text-center text-xs text-white/35 mt-3">
         Grundeinsatz {formatChf(game.ante)} pro Spieler und Runde

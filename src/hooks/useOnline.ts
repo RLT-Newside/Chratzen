@@ -1,33 +1,24 @@
 import { Capacitor } from '@capacitor/core'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { type Socket, io } from 'socket.io-client'
 import type { ClientGame } from '../lib/game'
+import type { ClientMsg } from '../lib/protocol'
+import {
+  type HostInfo,
+  type Transport,
+  createHostTransport,
+  createWsTransport,
+} from '../lib/transport'
 import type { Call } from '../lib/rules'
 
 const SESSION_KEY = 'chratzen.session.v1'
 const SERVER_KEY = 'chratzen.server'
 
-/**
- * Im Browser wird die App vom Socket-Server selbst ausgeliefert — gleicher
- * Origin, keine URL nötig. In der APK gibt es keinen Origin-Server, dort muss
- * die Adresse gesetzt werden (z. B. `192.168.1.42:3001` für das Gerät im WLAN,
- * das den Tisch hostet).
- */
-export function getServerUrl(): string {
-  return localStorage.getItem(SERVER_KEY) ?? ''
-}
-
-export function setServerUrl(raw: string) {
-  const value = raw.trim().replace(/\/+$/, '')
-  if (!value) return localStorage.removeItem(SERVER_KEY)
-  localStorage.setItem(SERVER_KEY, /^https?:\/\//.test(value) ? value : `http://${value}`)
-}
-
-/** In der App gibt es keinen Origin-Server — dort ist die Adresse Pflicht. */
-export const isNative = Capacitor.isNativePlatform()
-
 type Session = { code: string; token: string }
-type Ack = { ok: boolean; code?: string; token?: string; error?: string }
+
+/** Gast an einem fremden Tisch, oder dieses Gerät ist selbst der Tisch. */
+type Mode = { kind: 'guest'; url: string } | { kind: 'host' }
+
+export const isNative = Capacitor.isNativePlatform()
 
 function readSession(): Session | null {
   try {
@@ -38,54 +29,86 @@ function readSession(): Session | null {
   }
 }
 
+/**
+ * Im Browser wird die App vom Server selbst ausgeliefert — gleicher Origin,
+ * keine Adresse nötig. In der APK gibt es keinen Origin-Server, dort muss die
+ * Adresse des hostenden Geräts stehen, z. B. `192.168.1.42:3001`.
+ */
+export function getServerUrl(): string {
+  return localStorage.getItem(SERVER_KEY) ?? ''
+}
+
+export function setServerUrl(raw: string) {
+  const value = raw.trim().replace(/\/+$/, '')
+  if (!value) localStorage.removeItem(SERVER_KEY)
+  else localStorage.setItem(SERVER_KEY, value)
+}
+
 export function useOnline() {
-  const socketRef = useRef<Socket | null>(null)
+  const transportRef = useRef<Transport | null>(null)
+  /** Nachricht, die abgeschickt wird, sobald die Verbindung offen ist. */
+  const pending = useRef<ClientMsg | null>(null)
+
+  const [mode, setMode] = useState<Mode>(() => ({ kind: 'guest', url: getServerUrl() }))
   const [connected, setConnected] = useState(false)
   const [game, setGame] = useState<ClientGame | null>(null)
   const [code, setCode] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [server, setServer] = useState(getServerUrl)
+  const [hostInfo, setHostInfo] = useState<HostInfo | null>(null)
 
   useEffect(() => {
-    // Ohne Adresse: gleicher Origin — im Dev leitet der Vite-Proxy /socket.io an :3001.
-    if (isNative && !server) return
-    const socket = server
-      ? io(server, { transports: ['websocket', 'polling'] })
-      : io({ transports: ['websocket', 'polling'] })
-    socketRef.current = socket
+    const handlers = {
+      onOpen: () => {
+        setConnected(true)
+        const queued = pending.current
+        pending.current = null
+        if (queued) return transportRef.current?.send(queued)
+        // Nach Verbindungsabbruch automatisch zurück in die laufende Partie.
+        const session = readSession()
+        if (session) transportRef.current?.send({ t: 'rejoin', ...session })
+      },
+      onClose: () => setConnected(false),
+      onError: (text: string) => setError(text),
+      onMessage: (msg: import('../lib/protocol').ServerMsg) => {
+        switch (msg.t) {
+          case 'joined':
+            localStorage.setItem(SESSION_KEY, JSON.stringify({ code: msg.code, token: msg.token }))
+            setCode(msg.code)
+            break
+          case 'state':
+            setCode(msg.code)
+            setGame(msg.game)
+            break
+          case 'error':
+            setError(msg.message)
+            break
+          case 'kicked':
+            localStorage.removeItem(SESSION_KEY)
+            setGame(null)
+            setCode(null)
+            break
+        }
+      },
+    }
 
-    socket.on('connect', () => {
-      setConnected(true)
-      // Nach Verbindungsabbruch automatisch zurück in die laufende Partie.
-      const session = readSession()
-      if (session) {
-        socket.emit('room:rejoin', session, (ack: Ack) => {
-          if (ack?.ok) setCode(session.code)
-          else localStorage.removeItem(SESSION_KEY)
-        })
-      }
-    })
-    socket.on('disconnect', () => setConnected(false))
-    socket.on('state', ({ code: c, game: g }: { code: string; game: ClientGame }) => {
-      setCode(c)
-      setGame(g)
-    })
-    socket.on('error:msg', (msg: string) => setError(msg))
-    socket.on('kicked', () => {
-      localStorage.removeItem(SESSION_KEY)
-      setGame(null)
-      setCode(null)
-    })
+    // Ohne Adresse und ohne Origin-Server (APK) gibt es nichts zu verbinden.
+    if (mode.kind === 'guest' && isNative && !mode.url) {
+      setConnected(false)
+      return
+    }
 
-    socket.on('connect_error', () =>
-      setError(server ? `Kein Server unter ${server}` : 'Kein Server erreichbar.'),
-    )
+    const transport =
+      mode.kind === 'host'
+        ? createHostTransport(handlers, setHostInfo)
+        : createWsTransport(mode.url, handlers)
+    transportRef.current = transport
 
     return () => {
-      socket.removeAllListeners()
-      socket.disconnect()
+      transportRef.current = null
+      setConnected(false)
+      transport.close()
     }
-  }, [server])
+  }, [mode])
 
   useEffect(() => {
     if (!error) return
@@ -93,31 +116,24 @@ export function useOnline() {
     return () => clearTimeout(t)
   }, [error])
 
-  const enter = useCallback((event: 'room:create' | 'room:join', payload: object) => {
-    return new Promise<string | null>((resolve) => {
-      socketRef.current?.emit(event, payload, (ack: Ack) => {
-        if (!ack?.ok) {
-          setError(ack?.error ?? 'Fehlgeschlagen.')
-          return resolve(ack?.error ?? 'Fehlgeschlagen.')
-        }
-        localStorage.setItem(SESSION_KEY, JSON.stringify({ code: ack.code, token: ack.token }))
-        setCode(ack.code ?? null)
-        resolve(null)
-      })
-    })
-  }, [])
+  const connectedRef = useRef(false)
+  useEffect(() => {
+    connectedRef.current = connected
+  }, [connected])
 
-  const send = useCallback(
-    (event: string, payload?: object) => socketRef.current?.emit(event, payload ?? {}),
-    [],
-  )
+  /** Sofort senden, wenn offen — sonst beim Verbindungsaufbau nachholen. */
+  const send = useCallback((msg: ClientMsg) => {
+    if (transportRef.current && connectedRef.current) transportRef.current.send(msg)
+    else pending.current = msg
+  }, [])
 
   const leave = useCallback(() => {
     localStorage.removeItem(SESSION_KEY)
     setGame(null)
     setCode(null)
-    socketRef.current?.disconnect()
-    socketRef.current?.connect()
+    setHostInfo(null)
+    // Modus neu setzen erzwingt einen frischen Transport ohne alte Sitzung.
+    setMode({ kind: 'guest', url: getServerUrl() })
   }, [])
 
   return {
@@ -125,24 +141,32 @@ export function useOnline() {
     game,
     code,
     error,
-    server,
+    hostInfo,
     isNative,
-    /** Serveradresse wechseln — baut die Verbindung neu auf. */
+    isHosting: mode.kind === 'host',
+    server: mode.kind === 'guest' ? mode.url : '',
+
     changeServer: (url: string) => {
       setServerUrl(url)
-      setServer(getServerUrl())
+      setMode({ kind: 'guest', url: getServerUrl() })
     },
-    create: (name: string, ante: number) => enter('room:create', { name, ante }),
+    /** Tisch auf diesem Gerät öffnen — die anderen verbinden sich ins WLAN. */
+    hostTable: (name: string, ante: number) => {
+      localStorage.removeItem(SESSION_KEY)
+      pending.current = { t: 'create', name, ante }
+      setMode({ kind: 'host' })
+    },
+    create: (name: string, ante: number) => send({ t: 'create', name, ante }),
     join: (roomCode: string, name: string) =>
-      enter('room:join', { code: roomCode.toUpperCase(), name }),
+      send({ t: 'join', code: roomCode.toUpperCase(), name }),
     leave,
-    start: () => send('game:start'),
-    call: (call: Call) => send('game:call', { call }),
-    exchange: (cards: string[]) => send('game:exchange', { cards }),
-    sleeper: (card: string) => send('game:sleeper', { card }),
-    play: (card: string) => send('game:play', { card }),
-    next: () => send('game:next'),
-    kick: (playerId: string) => send('game:kick', { playerId }),
-    force: () => send('game:force'),
+    start: () => send({ t: 'start' }),
+    call: (call: Call) => send({ t: 'call', call }),
+    exchange: (cards: string[]) => send({ t: 'exchange', cards }),
+    sleeper: (card: string) => send({ t: 'sleeper', card }),
+    play: (card: string) => send({ t: 'play', card }),
+    next: () => send({ t: 'next' }),
+    kick: (playerId: string) => send({ t: 'kick', playerId }),
+    force: () => send({ t: 'force' }),
   }
 }

@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Wifi } from 'lucide-react'
 import { useState } from 'react'
 import { Button, SectionTitle, Segmented } from '../../components/ui'
 import { ANTE_OPTIONS, formatChf } from '../../lib/money'
@@ -9,6 +9,7 @@ export function Join({
   isNative,
   onChangeServer,
   onCreate,
+  onHost,
   onJoin,
   onBack,
 }: {
@@ -17,6 +18,7 @@ export function Join({
   isNative: boolean
   onChangeServer: (url: string) => void
   onCreate: (name: string, ante: number) => void
+  onHost: (name: string, ante: number) => void
   onJoin: (code: string, name: string) => void
   onBack: () => void
 }) {
@@ -30,7 +32,8 @@ export function Join({
     setName(n)
     localStorage.setItem('chratzen.name', n)
   }
-  const ready = name.trim().length > 0 && connected
+  const hasName = name.trim().length > 0
+  const ready = hasName && connected
 
   return (
     <div className="px-5 pt-6 pb-10 animate-fade-in">
@@ -111,15 +114,44 @@ export function Join({
           onChange={setAnte}
           options={ANTE_OPTIONS.map((a) => ({ value: a as number, label: formatChf(a) }))}
         />
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full mt-3"
-          disabled={!ready}
-          onClick={() => onCreate(name.trim(), ante)}
-        >
-          Tisch eröffnen
-        </Button>
+
+        {isNative ? (
+          <>
+            <Button
+              variant="primary"
+              size="lg"
+              className="w-full mt-3 flex items-center justify-center gap-2"
+              disabled={!hasName}
+              onClick={() => onHost(name.trim(), ante)}
+            >
+              <Wifi className="w-4 h-4" /> Tisch auf diesem Gerät
+            </Button>
+            <p className="text-xs text-white/35 mt-2 leading-relaxed">
+              Dein Handy führt den Tisch. Die anderen müssen im gleichen WLAN sein oder
+              sich in deinen Hotspot einwählen — kein Internet nötig.
+            </p>
+            {server && (
+              <Button
+                size="md"
+                className="w-full mt-3"
+                disabled={!ready}
+                onClick={() => onCreate(name.trim(), ante)}
+              >
+                Stattdessen auf {server} eröffnen
+              </Button>
+            )}
+          </>
+        ) : (
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full mt-3"
+            disabled={!ready}
+            onClick={() => onCreate(name.trim(), ante)}
+          >
+            Tisch eröffnen
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-3 my-8">

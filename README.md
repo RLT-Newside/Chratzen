@@ -6,23 +6,40 @@ Zwei Modi:
 
 | Modus | Status | Was er macht |
 |---|---|---|
-| **Companion** (Pott-Manager) | ✅ | Ihr spielt mit echten Karten. Die App führt Pott, Ansagen, Stiche, Bete/Sack und die Kasse. |
-| **Digital** (Online Multiplayer) | ✅ | Raumcode, virtueller Tisch, Austeilen/Tauschen/Stechen automatisch, Reconnect per Token. |
+| **Companion** (Pott-Manager) | ✅ | Ihr spielt mit echten Karten. Die App führt Pott, Ansagen, Stiche, Bete/Sack und die Kasse. **Braucht keinen Server.** |
+| **Digital** (Multiplayer) | ✅ | Raumcode, virtueller Tisch, Austeilen/Tauschen/Stechen automatisch, Wiedereinstieg per Token. |
+
+## Wer führt den Tisch?
+
+Der digitale Modus braucht genau eine Stelle, die die Verbindungen annimmt und
+den Spielstand hält. Dafür gibt es zwei Wege — **dieselbe Logik, anderer Draht**:
+
+| | Tisch auf dem Handy | Tisch auf einem Server |
+|---|---|---|
+| Wo | APK, Menü → Digital → *Tisch auf diesem Gerät* | Node-Prozess (Cloud, Pi, Laptop) |
+| Reichweite | gleiches WLAN oder Hotspot des Hosts | überall via Internet |
+| Kosten | keine, kein Internet nötig | Hosting |
+| Technik | `ChratzenHostPlugin` (Java) nimmt WebSockets an und reicht die Strings an die WebView durch; `TableHost` läuft in TypeScript in der App | `server/index.ts` fährt denselben `TableHost` hinter `ws` |
+
+Der Kern (`src/lib/host.ts`) kennt weder Node noch DOM: er bekommt Nachrichten
+und gibt zurück, was an welche Verbindung geht. Deshalb gibt es die Spiellogik
+nur einmal.
 
 ## Entwickeln
 
 ```bash
 npm install
-npm start        # Web (:5173) + Socket-Server (:3001) parallel
-npm run dev      # nur Frontend  — /socket.io wird auf :3001 geproxyt
+npm start        # Web (:5173) + Server (:3001) parallel
+npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # Regel- und Engine-Tests
-npm run smoke    # End-to-End über echte Sockets (Server muss laufen)
+npm test         # 35 Unit-Tests (Regeln, Engine, Tischwirt)
+npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
+npx cap sync android && cd android && ./gradlew assembleRelease   # APK
 ```
 
-Nach `npm run build` liefert der Socket-Server das Frontend gleich mit aus —
-`npm run server` und alles läuft auf `http://localhost:3001`.
+Nach `npm run build` liefert der Server das Frontend gleich mit aus — dann läuft
+alles auf `http://localhost:3001`.
 
 ## Struktur
 
@@ -31,33 +48,46 @@ src/
   lib/money.ts        Rappen-Arithmetik, Largest-Remainder-Split
   lib/rules.ts        Chratzen-Regelwerk, rein funktional (gilt für beide Modi)
   lib/cards.ts        36er-Deck, Stichvergleich, Farbzwang
-  lib/game.ts         Server-autoritative Engine + Redaction pro Spieler
-  lib/*.test.ts       20 Tests — Ausschüttung, Strafen, Banner, volle Runden
-  hooks/useCompanion  State des Companion-Modus (localStorage, Undo)
-  hooks/useOnline     Socket-Client, Session-Token, Auto-Reconnect
+  lib/game.ts         Autoritative Engine + Redaction pro Spieler
+  lib/host.ts         Tischwirt: Räume, Sitzungen, Rauswurf — ohne Transport
+  lib/protocol.ts     JSON-Nachrichten zwischen Gast und Tischwirt
+  lib/transport.ts    WebSocket-Gast bzw. Host-in-der-WebView
+  hooks/useCompanion  Companion-Zustand (localStorage, Undo)
+  hooks/useOnline     Verbindung, Sitzungs-Token, Auto-Reconnect
   components/         Button/Card/Segmented/Stepper, Spielkarte, Jass-Farben
   screens/            MainMenu, companion/*, digital/*
 server/
-  index.ts            Express + Socket.io, Räume im RAM, TTL 30 min
+  index.ts            Express + ws über TableHost, Räume im RAM, TTL 30 min
   smoke.ts            E2E-Check inkl. Verbindungsabbruch
+android/
+  …/ChratzenHostPlugin.java   WebSocket-Server im LAN, reine Leitung
 ```
 
-## Socket-Protokoll
+## Protokoll
 
-| Client → Server | Payload |
+Nacktes JSON über WebSocket — kein socket.io, damit das Handy-Plugin denselben
+Draht sprechen kann.
+
+| Gast → Tischwirt | |
 |---|---|
-| `room:create` | `{ name, ante }` → ack `{ code, token }` |
-| `room:join` | `{ code, name }` → ack `{ code, token }` |
-| `room:rejoin` | `{ code, token }` |
-| `game:start` | — (nur Host) |
-| `game:call` | `{ call: 'kratzen' \| 'mitgehen' \| 'weiter' \| 'letzter' }` |
-| `game:exchange` | `{ cards: CardId[] }` (0–4) |
-| `game:sleeper` | `{ card: CardId }` |
-| `game:play` | `{ card: CardId }` |
-| `game:next` | — (nur Host) |
+| `{t:'create', name, ante}` | neuen Tisch eröffnen |
+| `{t:'join', code, name}` | beitreten |
+| `{t:'rejoin', code, token}` | nach Abbruch zurück an den Platz |
+| `{t:'start'}` | Partie starten (nur Host) |
+| `{t:'call', call}` | `kratzen` / `mitgehen` / `weiter` / `letzter` |
+| `{t:'exchange', cards}` | 0–4 Karten tauschen |
+| `{t:'sleeper', card}` | Schlafkarte abwerfen |
+| `{t:'play', card}` | Karte ausspielen |
+| `{t:'next'}` | nächste Runde (nur Host) |
+| `{t:'kick', playerId}` | rauswerfen (nur Host) |
+| `{t:'force'}` | hängenden Zug übernehmen (nur Host) |
 
-Server → Client: `state` (pro Spieler redigiert — fremde Hände und Reststapel
-bleiben geheim) und `error:msg`.
+| Tischwirt → Gast | |
+|---|---|
+| `{t:'joined', code, token}` | Platz und Sitzungs-Token |
+| `{t:'state', code, game}` | pro Spieler redigiert — fremde Hände und Reststapel bleiben geheim |
+| `{t:'error', message}` | abgelehnte Aktion |
+| `{t:'kicked'}` | Sitzung entwertet |
 
 ## Regeln (wie implementiert)
 
@@ -85,9 +115,6 @@ Geld wird intern durchgehend in **Rappen als Integer** gerechnet — keine Float
 
 ## Host-Rechte (digitaler Modus)
 
-Der Host ist ein Spieler mit Sonderrechten auf dem zentralen Server — kein Gerät,
-das den Server selbst betreibt.
-
 - **Rauswerfen**: in der Lobby sofort, in laufender Partie erst zur nächsten Runde
   (mitten im Stich würden Pott und Stichzählung nicht mehr aufgehen). Die Sitzung
   des Betroffenen wird entwertet, der Token funktioniert nicht mehr.
@@ -95,21 +122,42 @@ das den Server selbst betreibt.
   länger als 30 s nicht reagiert. Erzwungen wird immer die harmlose Variante —
   passen, nicht tauschen, erste legale Karte.
 - Die Host-Rolle wandert automatisch weiter, wenn der Host offline geht.
-- Gegen Raum-Spam von aussen: max. 5 neue Räume pro IP und Minute.
+- Beim Server-Betrieb zusätzlich gegen Raum-Spam: max. 5 neue Tische pro IP und Minute.
 
-## Betrieb
+## Tisch auf dem Handy
+
+1. APK öffnen → **Digital** → Name eingeben → *Tisch auf diesem Gerät*.
+2. Die Lobby zeigt Adresse (`192.168.x.y:3001`) und Raumcode.
+3. Die anderen: **Digital** → *Server* → Adresse eintragen → mit dem Code beitreten.
+
+Alle müssen im selben Netz sein — WLAN der Beiz oder der Hotspot des Hosts.
+Internet braucht es dafür nicht. Der Bildschirm des Hosts bleibt an, solange der
+Tisch läuft; wird die App geschlossen, ist der Tisch weg.
+
+Technisch: `ChratzenHostPlugin` öffnet einen WebSocket-Server auf Port 3001 und
+reicht die Nachrichten roh an die WebView durch. Die WebView fährt `TableHost` —
+denselben Code wie der Node-Server. In der App gilt `androidScheme: 'http'`, sonst
+würde die WebView eine `ws://`-Verbindung ins LAN als Mixed Content blockieren.
+
+## Tisch auf einem Server
 
 ```bash
 npm run build && npm run server
 ```
 
-Ein Node-Prozess liefert Frontend und WebSockets. Braucht einen Host mit
-WebSocket-Support (Fly.io, Railway, Render — **nicht** Vercel/Netlify).
+Ein Node-Prozess liefert Frontend und WebSockets. Braucht einen Anbieter mit
+WebSocket-Support (Fly.io, Railway, Render, eigener Pi — **nicht** Vercel/Netlify).
 
 | Variable | Default | Zweck |
 |---|---|---|
 | `PORT` | `3001` | Port |
-| `CORS_ORIGIN` | `*` | im Betrieb auf die eigene Domain setzen |
+
+## APK
+
+GitHub Actions baut sie: Workflow **APK** manuell starten oder einen Tag `v*`
+pushen. Ohne Keystore-Secrets kommt eine unsignierte APK als Artifact heraus —
+zum Installieren braucht es `KEYSTORE_BASE64`, `KEY_ALIAS` und `KEYSTORE_PASSWORD`
+als Repository-Secrets.
 
 ## Lizenz
 

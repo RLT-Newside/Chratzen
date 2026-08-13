@@ -7,8 +7,8 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    // Socket.io läuft separat auf :3001 — im Dev über denselben Origin proxyen,
-    // damit der Client nirgends eine URL hartcodieren muss.
-    proxy: { '/socket.io': { target: 'http://localhost:3001', ws: true } },
+    // Der Tischwirt läuft separat auf :3001 — im Dev über denselben Origin
+    // proxyen, damit der Client nirgends eine Adresse hartcodieren muss.
+    proxy: { '/ws': { target: 'ws://localhost:3001', ws: true } },
   },
 })
