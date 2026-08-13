@@ -76,8 +76,9 @@ export function Join({
       {showServer && (
         <div className="mt-3 glass rounded-xl p-3">
           <p className="text-[11px] text-white/45 leading-relaxed mb-2">
-            Adresse des Geräts, das den Tisch hostet. Im gleichen WLAN reicht die lokale
-            IP, z. B. <span className="text-white/70">192.168.1.42:3001</span>.
+            Adresse des Geräts, das den Tisch hostet — z. B.{' '}
+            <span className="text-white/70">192.168.1.42:3001</span>. Einfacher: diese
+            Adresse direkt im Browser öffnen, dann braucht es die App gar nicht.
           </p>
           <div className="flex gap-2">
             <input
@@ -127,8 +128,9 @@ export function Join({
               <Wifi className="w-4 h-4" /> Tisch auf diesem Gerät
             </Button>
             <p className="text-xs text-white/35 mt-2 leading-relaxed">
-              Dein Handy führt den Tisch. Die anderen müssen im gleichen WLAN sein oder
-              sich in deinen Hotspot einwählen — kein Internet nötig.
+              Dein Handy führt den Tisch und liefert die App gleich mit aus: die anderen
+              brauchen nur einen Browser, keine Installation. Alle müssen in deinem Hotspot
+              oder im selben WLAN sein — Internet braucht es keines.
             </p>
             {server && (
               <Button

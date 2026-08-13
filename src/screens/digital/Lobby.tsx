@@ -1,4 +1,4 @@
-import { Check, Copy, LogOut, UserMinus } from 'lucide-react'
+import { Check, Copy, LogOut, UserMinus, WifiOff } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Card, SectionTitle } from '../../components/ui'
 import type { ClientGame } from '../../lib/game'
@@ -21,12 +21,17 @@ export function Lobby({
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState(false)
+  const [pickedIp, setPickedIp] = useState<string | null>(null)
   const isHost = game.youId === game.hostId
-  const address = hostInfo?.ip ? `${hostInfo.ip}:${hostInfo.port}` : null
+
+  const nics = hostInfo?.interfaces ?? []
+  const ip = pickedIp ?? hostInfo?.ip ?? ''
+  const address = ip ? `${ip}:${hostInfo?.port}` : null
+  const url = address ? `http://${address}` : null
 
   const copy = async () => {
     try {
-      await navigator.clipboard.writeText(address ? `${address} · ${code}` : code)
+      await navigator.clipboard.writeText(url ? `${url} · Code ${code}` : code)
       setCopied(true)
       setTimeout(() => setCopied(false), 1600)
     } catch {
@@ -48,26 +53,73 @@ export function Lobby({
         <p className="font-heading text-7xl tracking-[0.2em] text-brand leading-none mt-2 pot-glow">
           {code}
         </p>
-        {address && (
+        {url && (
           <>
-            <p className="label-caption mt-5">Adresse für die anderen</p>
-            <p className="font-heading text-3xl tracking-wider text-white/85 leading-none mt-1 tabular">
+            <p className="label-caption mt-5">Im Browser öffnen</p>
+            <p className="font-heading text-3xl tracking-wide text-white/85 leading-none mt-1 tabular">
               {address}
             </p>
           </>
         )}
         <Button size="sm" className="mt-4 inline-flex items-center gap-2" onClick={copy}>
           {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-          {copied ? 'Kopiert' : address ? 'Adresse & Code kopieren' : 'Code kopieren'}
+          {copied ? 'Kopiert' : url ? 'Adresse & Code kopieren' : 'Code kopieren'}
         </Button>
       </Card>
 
-      {address && (
-        <p className="text-center text-xs text-white/40 mt-3 leading-relaxed">
-          Dieses Gerät führt den Tisch. Die anderen öffnen Chratzen → Digital → Server auf{' '}
-          <span className="text-white/70">{address}</span> setzen und mit dem Code beitreten.
-          Bildschirm bleibt an, solange der Tisch läuft.
-        </p>
+      {hostInfo && !url && (
+        <Card className="mt-3 border-amber-400/30">
+          <div className="flex gap-3">
+            <WifiOff className="w-5 h-5 text-amber-300/80 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-200/85 leading-relaxed">
+              Kein lokales Netz gefunden. Schalte den Hotspot ein oder verbinde dich mit
+              einem WLAN — mit reinen Mobildaten können die anderen dein Gerät nicht
+              erreichen.
+            </p>
+          </div>
+        </Card>
+      )}
+
+      {url && (
+        <>
+          <p className="text-center text-xs text-white/40 mt-3 leading-relaxed">
+            Die anderen tippen <span className="text-white/70">{address}</span> in einen
+            beliebigen Browser und treten mit dem Code bei — ohne App. Dein Bildschirm bleibt
+            an, solange der Tisch läuft.
+          </p>
+
+          {nics.length > 1 && (
+            <div className="mt-3">
+              <p className="label-caption text-center mb-2">
+                Klappt nicht? Andere Adresse vorlesen
+              </p>
+              <div className="flex flex-wrap justify-center gap-1.5">
+                {nics.map((nic) => (
+                  <button
+                    key={nic.ip}
+                    type="button"
+                    onClick={() => setPickedIp(nic.ip)}
+                    className={`press-scale text-[11px] px-2.5 py-1.5 rounded-lg tabular ${
+                      nic.ip === ip ? 'bg-brand/20 text-brand' : 'glass text-white/45'
+                    }`}
+                  >
+                    {nic.ip}
+                    <span className="text-white/30 ml-1">
+                      {nic.kind === 'hotspot' ? 'Hotspot' : nic.kind === 'wlan' ? 'WLAN' : nic.name}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {nics[0]?.kind !== 'hotspot' && (
+            <p className="text-center text-[11px] text-white/30 mt-3 leading-relaxed">
+              Tipp: Öffentliche WLANs blockieren oft Gerät-zu-Gerät. Wenn niemand
+              reinkommt, Hotspot einschalten und alle darauf verbinden.
+            </p>
+          )}
+        </>
       )}
 
       <p className="text-center text-xs text-white/35 mt-3">

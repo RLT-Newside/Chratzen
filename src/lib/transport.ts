@@ -28,7 +28,13 @@ export type Transport = {
   close: () => void
 }
 
-export type HostInfo = { ip: string; port: number }
+export type NetInterface = { name: string; ip: string; kind: 'hotspot' | 'wlan' | 'other' }
+
+/**
+ * Der Host lauscht auf allen Interfaces — die Adressen sind gleichwertig.
+ * Die Liste dient nur dazu, den Gästen die richtige vorzulesen.
+ */
+export type HostInfo = { ip: string; port: number; interfaces: NetInterface[] }
 
 type ChratzenHostPlugin = {
   start(o: { port: number }): Promise<HostInfo>

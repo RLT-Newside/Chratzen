@@ -19,7 +19,8 @@ den Spielstand hält. Dafür gibt es zwei Wege — **dieselbe Logik, anderer Dra
 | Wo | APK, Menü → Digital → *Tisch auf diesem Gerät* | Node-Prozess (Cloud, Pi, Laptop) |
 | Reichweite | gleiches WLAN oder Hotspot des Hosts | überall via Internet |
 | Kosten | keine, kein Internet nötig | Hosting |
-| Technik | `ChratzenHostPlugin` (Java) nimmt WebSockets an und reicht die Strings an die WebView durch; `TableHost` läuft in TypeScript in der App | `server/index.ts` fährt denselben `TableHost` hinter `ws` |
+| Gäste | nur ein Browser, keine Installation | nur ein Browser |
+| Technik | `ChratzenHostPlugin` (Java/NanoWSD) liefert die App per HTTP aus und nimmt am selben Port WebSockets an; `TableHost` läuft in TypeScript in der App | `server/index.ts` fährt denselben `TableHost` hinter `ws` |
 
 Der Kern (`src/lib/host.ts`) kennt weder Node noch DOM: er bekommt Nachrichten
 und gibt zurück, was an welche Verbindung geht. Deshalb gibt es die Spiellogik
@@ -126,18 +127,43 @@ Geld wird intern durchgehend in **Rappen als Integer** gerechnet — keine Float
 
 ## Tisch auf dem Handy
 
-1. APK öffnen → **Digital** → Name eingeben → *Tisch auf diesem Gerät*.
-2. Die Lobby zeigt Adresse (`192.168.x.y:3001`) und Raumcode.
-3. Die anderen: **Digital** → *Server* → Adresse eintragen → mit dem Code beitreten.
+**Nur der Host braucht die APK.**
 
-Alle müssen im selben Netz sein — WLAN der Beiz oder der Hotspot des Hosts.
-Internet braucht es dafür nicht. Der Bildschirm des Hosts bleibt an, solange der
-Tisch läuft; wird die App geschlossen, ist der Tisch weg.
+1. Host: APK öffnen → **Digital** → Name → *Tisch auf diesem Gerät*.
+2. Die Lobby zeigt eine Adresse wie `192.168.43.1:3001` und den Raumcode.
+3. Alle anderen tippen diese Adresse in einen beliebigen Browser — Android,
+   iPhone, Laptop — und treten mit dem Code bei.
 
-Technisch: `ChratzenHostPlugin` öffnet einen WebSocket-Server auf Port 3001 und
-reicht die Nachrichten roh an die WebView durch. Die WebView fährt `TableHost` —
-denselben Code wie der Node-Server. In der App gilt `androidScheme: 'http'`, sonst
-würde die WebView eine `ws://`-Verbindung ins LAN als Mixed Content blockieren.
+### Das Netz entscheidet, nicht die Distanz
+
+Am selben Tisch zu sitzen genügt nicht. Mit reinen **Mobildaten geht es nicht**:
+jedes Gerät hängt einzeln beim Provider hinter CGNAT und kann die anderen nicht
+erreichen.
+
+- **Hotspot des Hosts** — zuverlässigste Variante, kostet kein Datenvolumen und
+  braucht keine Internetverbindung.
+- **Gemeinsames WLAN** — geht, aber öffentliche Netze haben oft AP-Isolation und
+  blockieren Gerät-zu-Gerät.
+
+Findet die App kein lokales Netz, warnt die Lobby. Gibt es mehrere Adressen
+(WLAN und Hotspot gleichzeitig), lassen sie sich dort durchschalten — der Server
+lauscht auf allen.
+
+### Technisch
+
+`ChratzenHostPlugin` fährt einen `NanoWSD`: **HTTP und WebSocket auf einem Port**.
+Über HTTP liefert es die Web-Assets aus der APK (`assets/public`) aus, deshalb
+braucht kein Gast eine Installation. Die WebSocket-Nachrichten reicht es roh an
+die WebView durch, die `TableHost` fährt — denselben Code wie der Node-Server.
+Ein Ping alle 20 s deckt tote Verbindungen auf.
+
+Weil die Gästeseite vom Host selbst kommt, liegt der WebSocket am gleichen
+Origin — kein Mixed Content, keine Adresse zu konfigurieren. In der App gilt
+zusätzlich `androidScheme: 'http'`, sonst würde die Host-WebView ihre eigene
+`ws://`-Verbindung blockieren.
+
+Der Bildschirm des Hosts bleibt an, solange der Tisch läuft. Wird die App
+geschlossen, ist der Tisch weg.
 
 ## Tisch auf einem Server
 
