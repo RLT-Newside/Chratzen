@@ -50,6 +50,13 @@ export type Game = {
   discards: Card[]
   hands: Record<string, Card[]>
   trump: Card | null
+  /**
+   * Der erste Trumpf ist die letzte ausgeteilte Karte und bleibt in der Hand
+   * des Gebers. Ein nachgezogener Trumpf gehört dagegen niemandem. Ohne diese
+   * Unterscheidung landet die Handkarte beim Neuaufdecken im Ablagestapel und
+   * wird später ein zweites Mal ausgeteilt.
+   */
+  trumpInHand: boolean
   calls: Record<string, Call>
   /** Index des Spielers, der gerade dran ist. */
   turn: number
@@ -93,6 +100,7 @@ export function createGame(hostId: string, ante: number): Game {
     discards: [],
     hands: {},
     trump: null,
+    trumpInHand: false,
     calls: {},
     turn: 0,
     callsLeft: 0,
@@ -133,8 +141,9 @@ function collectAnte(g: Game) {
 }
 
 /** Trumpf aufdecken und prüfen, ob es eine Bannerrunde ist. */
-function revealTrump(g: Game, card: Card) {
+function revealTrump(g: Game, card: Card, fromHand: boolean) {
   g.trump = card
+  g.trumpInHand = fromHand
   g.calls = Object.fromEntries(g.players.map((p) => [p.id, 'weiter' as Call]))
   g.awaitLetzter = false
   g.callOrder = []
@@ -174,7 +183,8 @@ function deal(g: Game) {
       g.hands[p.id].push(last)
     }
   }
-  revealTrump(g, last as Card)
+  // Die letzte Karte des Gebers wird aufgedeckt und bleibt in seiner Hand.
+  revealTrump(g, last as Card, true)
 }
 
 /**
@@ -278,8 +288,17 @@ function beginExchange(g: Game) {
   g.phase = 'exchange'
   const inGame = participants(g)
   if (inGame.length === 0) return
-  g.turn = nextParticipant(g, g.dealerIndex)
+  g.turn = kratzerIndex(g)
   g.leader = g.turn
+}
+
+/**
+ * Der Kratzer eröffnet: er tauscht zuerst und spielt den ersten Stich aus.
+ * Fehlt er ausnahmsweise, gilt der erste Teilnehmer links vom Geber.
+ */
+function kratzerIndex(g: Game): number {
+  const i = g.players.findIndex((p) => g.calls[p.id] === 'kratzen')
+  return i >= 0 ? i : nextParticipant(g, g.dealerIndex)
 }
 
 /** Nächster noch spielender Spieler links von `from`. */
@@ -295,9 +314,11 @@ function nextParticipant(g: Game, from: number): number {
 function nobodyPlays(g: Game) {
   g.flips += 1
   if (g.flips < MAX_TRUMP_FLIPS) {
-    if (g.trump) g.discards.push(g.trump)
+    // Nur ein nachgezogener Trumpf gehört auf den Ablagestapel — die Handkarte
+    // des Gebers liegt ja weiterhin bei ihm.
+    if (g.trump && !g.trumpInHand) g.discards.push(g.trump)
     g.message = `Niemand spielt — ${g.flips}. neuer Trumpf.`
-    revealTrump(g, draw(g))
+    revealTrump(g, draw(g), false)
     return
   }
   g.flips = 0
@@ -422,7 +443,7 @@ export function applyExchange(g: Game, playerId: string, discard: CardId[]): str
   }
 
   g.phase = g.sleepers.length > 0 ? 'sleeper' : 'play'
-  g.turn = nextParticipant(g, g.dealerIndex)
+  g.turn = kratzerIndex(g)
   g.leader = g.turn
   return null
 }
@@ -440,7 +461,7 @@ export function applySleeperDiscard(g: Game, playerId: string, card: CardId): st
 
   if (g.sleepers.length === 0) {
     g.phase = 'play'
-    g.turn = nextParticipant(g, g.dealerIndex)
+    g.turn = kratzerIndex(g)
     g.leader = g.turn
   }
   return null
@@ -521,6 +542,8 @@ export type ClientGame = {
   phase: GamePhase
   hand: Card[]
   trump: Card | null
+  /** Der Trumpf ist die aufgedeckte Handkarte des Gebers, nicht vom Stapel. */
+  trumpInHand: boolean
   turn: number
   awaitLetzter: boolean
   /** Du hast vor dem Kratzer gepasst und wirst nochmals gefragt. */
@@ -565,6 +588,7 @@ export function redact(g: Game, youId: string): ClientGame {
     phase: g.phase,
     hand,
     trump: g.trump,
+    trumpInHand: g.trumpInHand,
     turn: g.turn,
     awaitLetzter: g.awaitLetzter,
     secondChance: g.secondChance.includes(youId),

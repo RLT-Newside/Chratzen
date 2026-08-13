@@ -24,6 +24,7 @@ function makeGame(names: string[], ante = 100): Game {
 /** Spielt eine Runde mit zufälligen, aber immer legalen Zügen bis zur Abrechnung. */
 function autoplay(g: Game) {
   for (let guard = 0; guard < 2000 && g.phase !== 'settle'; guard++) {
+    expectNoDuplicates(g)
     if (g.phase === 'calls') {
       const p = g.players[g.turn]
       const hasKratzer = g.players.some((x) => g.calls[x.id] === 'kratzen')
@@ -56,6 +57,32 @@ function autoplay(g: Game) {
 }
 
 const chips = (g: Game) => g.players.reduce((a, p) => a + p.balance, 0) + g.pot
+
+/**
+ * Jede Karte existiert genau einmal — auf einer Hand, im Stapel, im Ablagestapel
+ * oder im laufenden Stich. Der aufgedeckte Trumpf zählt nur mit, wenn er nicht
+ * ohnehin schon in der Hand des Gebers liegt.
+ */
+function everyCard(g: Game): string[] {
+  const all = [
+    ...g.deck,
+    ...g.discards,
+    ...Object.values(g.hands).flat(),
+    ...g.trick.map((t) => t.card),
+  ].map(cardId)
+  if (g.trump && !g.trumpInHand) all.push(cardId(g.trump))
+  return all
+}
+
+function expectNoDuplicates(g: Game) {
+  const all = everyCard(g)
+  const seen = new Set(all)
+  if (seen.size !== all.length) {
+    const doppelt = all.filter((c, i) => all.indexOf(c) !== i)
+    throw new Error(`Karte doppelt im Spiel: ${[...new Set(doppelt)].join(', ')}`)
+  }
+  expect(all).toHaveLength(36)
+}
 
 describe('Austeilen', () => {
   it('gibt jedem 4 Karten und deckt die letzte Karte des Gebers als Trumpf auf', () => {
@@ -243,6 +270,67 @@ describe('Host-Rechte', () => {
       expect(forceMove(g, 'p0')).toBeNull()
     }
     expect(g.phase).toBe('settle')
+  })
+})
+
+describe('Kartenbestand', () => {
+  it('deckt jede Karte genau einmal auf, auch über mehrere Trumpfwechsel', () => {
+    const g = makeGame(['A', 'B', 'C', 'D'])
+    startRound(g)
+    expectNoDuplicates(g)
+
+    // Der erste Trumpf liegt in der Hand des Gebers und darf beim Neuaufdecken
+    // nicht im Ablagestapel landen — sonst wird er ein zweites Mal ausgeteilt.
+    expect(g.trumpInHand).toBe(true)
+    const dealerHand = g.hands[g.players[g.dealerIndex].id].map(cardId)
+    expect(dealerHand).toContain(cardId(g.trump as Card))
+
+    for (let flip = 0; flip < 3 && !g.banner; flip++) {
+      for (let k = 0; k < g.players.length && g.phase === 'calls'; k++) {
+        applyCall(g, g.players[g.turn].id, 'weiter')
+      }
+      expectNoDuplicates(g)
+    }
+  })
+
+  it('bleibt auch nach vielen Tauschrunden sauber', () => {
+    for (let round = 0; round < 12; round++) {
+      const g = makeGame(['A', 'B', 'C', 'D', 'E', 'F'])
+      startRound(g)
+      autoplay(g)
+      expectNoDuplicates(g)
+    }
+  })
+})
+
+describe('Der Kratzer eröffnet', () => {
+  it('tauscht zuerst und spielt den ersten Stich aus', () => {
+    const g = makeGame(['A', 'B', 'C', 'D'])
+    do {
+      g.pot = 0
+      for (const p of g.players) p.balance = 0
+      startRound(g)
+    } while (g.banner)
+
+    // p1 ist links vom Geber und passt; p2 kratzt.
+    applyCall(g, g.players[g.turn].id, 'weiter')
+    const kratzer = g.players[g.turn]
+    applyCall(g, kratzer.id, 'kratzen')
+    while (g.phase === 'calls') applyCall(g, g.players[g.turn].id, 'weiter')
+
+    expect(g.phase).toBe('exchange')
+    expect(g.players[g.turn].id).toBe(kratzer.id)
+
+    applyExchange(g, kratzer.id, [])
+    while (g.phase === 'exchange') applyExchange(g, g.players[g.turn].id, [])
+    while (g.phase === 'sleeper') {
+      const id = g.sleepers[0]
+      applySleeperDiscard(g, id, cardId(g.hands[id][0]))
+    }
+
+    expect(g.phase).toBe('play')
+    expect(g.players[g.turn].id).toBe(kratzer.id)
+    expect(g.players[g.leader].id).toBe(kratzer.id)
   })
 })
 

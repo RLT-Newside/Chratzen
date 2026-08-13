@@ -161,9 +161,13 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
 - Austeilen einzeln reihum, 4 Karten; die letzte Karte des Gebers wird als Trumpf aufgedeckt.
 - **Tausch** 0–4 Karten. Wer alle 4 tauscht, zieht 5 und wirft vor dem Ausspielen
   eine **Schlafkarte** verdeckt ab.
-- Kartenrang 6 < 7 < 8 < 9 < 10 < U < O < K < A, Trumpf schlägt Farbe.
-  **Farbzwang** (bedienen wenn möglich), kein Stichzwang — anpassbar in `src/lib/cards.ts`.
-- Ausspielen beginnt links vom Geber beim ersten Spieler, der noch dabei ist.
+- 36 Karten, 4 Farben (Schellen, Schilten, Rosen, Eichel) à 9 Werte:
+  **6, 7, 8, 9, Banner (10), Under, Ober, König, Ass** — in dieser Reihenfolge
+  aufsteigend. Trumpf schlägt Farbe.
+- **Farbzwang** (bedienen wenn möglich), kein Stichzwang — anpassbar in `src/lib/cards.ts`.
+- **Der Kratzer eröffnet**: er tauscht zuerst und spielt den ersten Stich aus.
+- Der aufgedeckte Trumpf ist die letzte Karte des Gebers und **bleibt in seiner
+  Hand** — der Tisch zeigt darum an, bei wem sie liegt.
 
 ## Bots
 

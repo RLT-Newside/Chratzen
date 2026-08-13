@@ -1,4 +1,4 @@
-import { type Card, rankLabel } from '../lib/cards'
+import { type Card, RANK_NAME, SUIT_LABEL, rankLabel } from '../lib/cards'
 import { Eichel, Rosen, Schellen, Schilten } from './suits'
 
 const SUIT_UI = {
@@ -37,7 +37,7 @@ export function PlayingCard({
       type="button"
       disabled={!interactive}
       onClick={onClick}
-      aria-label={label ?? `${rankLabel(card.rank)} ${card.suit}`}
+      aria-label={label ?? `${RANK_NAME[card.rank]} ${SUIT_LABEL[card.suit]}`}
       className={`${SIZE[size]} relative shrink-0 bg-[#faf7f0] border border-black/15 shadow-lg
         flex flex-col items-center justify-center gap-0.5 font-heading text-black
         ${interactive ? 'press-scale cursor-pointer' : 'cursor-default'}

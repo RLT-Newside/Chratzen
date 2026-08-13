@@ -84,6 +84,15 @@ export function Table({
           <div className="text-center">
             <p className="label-caption mb-1">Trumpf</p>
             <PlayingCard card={game.trump} size="sm" />
+            {/* Der erste Trumpf ist die letzte Karte des Gebers und bleibt bei
+                ihm — sonst wundert man sich, warum man sie auf der Hand hat. */}
+            {game.trumpInHand && (
+              <p className="text-[10px] text-white/30 mt-1">
+                {game.dealerIndex === game.players.findIndex((p) => p.id === game.youId)
+                  ? 'deine Karte'
+                  : `bei ${game.players[game.dealerIndex]?.name}`}
+              </p>
+            )}
           </div>
         )}
         {game.isHost && (

@@ -21,8 +21,22 @@ export function parseCard(id: CardId): Card {
   return { suit: suit as Suit, rank: Number(rank) as Rank }
 }
 
+/** Kurz für die Kartenecke: 6 7 8 9 10 U O K A. */
 export function rankLabel(r: Rank): string {
   return r === 11 ? 'U' : r === 12 ? 'O' : r === 13 ? 'K' : r === 14 ? 'A' : String(r)
+}
+
+/** Ausgeschrieben — für Vorlesehilfen und Meldungen. */
+export const RANK_NAME: Record<Rank, string> = {
+  6: 'Sechser',
+  7: 'Siebner',
+  8: 'Achter',
+  9: 'Neuner',
+  10: 'Banner',
+  11: 'Under',
+  12: 'Ober',
+  13: 'König',
+  14: 'Ass',
 }
 
 export const SUIT_LABEL: Record<Suit, string> = {
