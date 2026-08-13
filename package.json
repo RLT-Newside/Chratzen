@@ -1,0 +1,43 @@
+{
+  "name": "chratzen",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Chratzen — Schweizer Kartenspiel: Companion (Pott-Manager) + Digital (Online Multiplayer)",
+  "license": "GPL-3.0-or-later",
+  "repository": { "type": "git", "url": "git+https://github.com/RLT-Newside/Chratzen.git" },
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "server": "tsx watch server/index.ts",
+    "smoke": "tsx server/smoke.ts",
+    "start": "concurrently -n web,api -c cyan,magenta \"npm:dev\" \"npm:server\"",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@fontsource/bebas-neue": "^5.2.7",
+    "@fontsource/dm-sans": "^5.2.8",
+    "@tailwindcss/vite": "^4.2.2",
+    "express": "^5.2.1",
+    "lucide-react": "^1.7.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "socket.io": "^4.8.3",
+    "socket.io-client": "^4.8.3",
+    "tailwindcss": "^4.2.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.12.2",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^10.0.4",
+    "tsx": "^4.23.12",
+    "typescript": "~6.0.2",
+    "vite": "^8.0.4",
+    "vitest": "^4.1.8"
+  }
+}

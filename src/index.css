@@ -1,0 +1,119 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-heading: 'Bebas Neue', sans-serif;
+  --font-sans: 'DM Sans', sans-serif;
+  --color-brand: #e0b23c;
+  --color-felt: #12301f;
+  --color-ink: #0b0e0c;
+}
+
+:root {
+  --color-brand-rgb: 224, 178, 60;
+  --glass-bg: rgba(255, 255, 255, 0.04);
+  --glass-bg-elevated: rgba(255, 255, 255, 0.06);
+  --glass-border: rgba(255, 255, 255, 0.08);
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background:
+    radial-gradient(120% 80% at 50% -10%, rgba(18, 48, 31, 0.9) 0%, transparent 60%),
+    radial-gradient(90% 60% at 50% 110%, rgba(224, 178, 60, 0.06) 0%, transparent 60%),
+    #0b0e0c;
+  background-attachment: fixed;
+}
+
+/* Feines Filz-/Rauschen-Overlay wie am echten Jasstisch. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.glass {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+}
+
+.glass-elevated {
+  background: var(--glass-bg-elevated);
+  backdrop-filter: blur(40px);
+  -webkit-backdrop-filter: blur(40px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.field {
+  @apply w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2.5 text-sm
+    focus:border-brand/40 focus:bg-white/[0.06] focus:outline-none;
+}
+
+.label-caption {
+  @apply text-[11px] text-white/40 uppercase tracking-[0.14em];
+}
+
+.press-scale {
+  transition:
+    transform 150ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 150ms ease,
+    border-color 150ms ease;
+}
+.press-scale:active {
+  transform: scale(0.97);
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 12px);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.animate-fade-in {
+  animation: fade-in 0.22s ease-out;
+}
+
+@keyframes pot-pulse {
+  0%,
+  100% {
+    text-shadow: 0 0 18px rgba(var(--color-brand-rgb), 0.15);
+  }
+  50% {
+    text-shadow: 0 0 34px rgba(var(--color-brand-rgb), 0.35);
+  }
+}
+.pot-glow {
+  animation: pot-pulse 3.5s ease-in-out infinite;
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
