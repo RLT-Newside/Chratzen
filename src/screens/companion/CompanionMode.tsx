@@ -2,12 +2,10 @@ import { ArrowLeft, RotateCcw, Undo2, Users } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '../../components/ui'
 import { useCompanion } from '../../hooks/useCompanion'
-import { CallsPhase } from './CallsPhase'
 import { PotHeader } from './PotHeader'
-import { SettlePhase } from './SettlePhase'
+import { RoundPhase } from './RoundPhase'
 import { Setup } from './Setup'
 import { Standings } from './Standings'
-import { TricksPhase } from './TricksPhase'
 
 export function CompanionMode({ onExit }: { onExit: () => void }) {
   const c = useCompanion()
@@ -29,8 +27,6 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
     )
   }
 
-  const dealer = state.players[state.dealerIndex]?.name ?? '—'
-
   return (
     <div className="px-5 pt-4 pb-28 animate-fade-in">
       <div className="flex items-center justify-between mb-1">
@@ -43,7 +39,7 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
             size="sm"
             disabled={!c.canUndo}
             onClick={c.undo}
-            aria-label="Letzte Aktion rückgängig"
+            aria-label="Letzte Buchung rückgängig"
           >
             <Undo2 className="w-4 h-4" />
           </Button>
@@ -58,9 +54,9 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
           <Button
             variant="ghost"
             size="sm"
-            aria-label="Neues Spiel"
+            aria-label="Neue Kasse"
             onClick={() => {
-              if (confirm('Neues Spiel starten? Kontostände und Verlauf werden gelöscht.')) {
+              if (confirm('Neue Kasse starten? Kontostände und Verlauf werden gelöscht.')) {
                 c.reset()
               }
             }}
@@ -70,54 +66,23 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
         </div>
       </div>
 
-      <PotHeader
-        pot={state.pot}
-        ante={state.ante}
-        round={state.round}
-        dealer={dealer}
-        flips={state.flips}
-      />
+      <PotHeader pot={state.pot} ante={state.ante} round={state.round} />
 
       {tab === 'round' ? (
-        state.phase === 'calls' ? (
-          <CallsPhase
-            players={state.players}
-            dealerIndex={state.dealerIndex}
-            calls={state.calls}
-            banner={state.banner}
-            error={c.callError}
-            onSetCall={c.setCall}
-            onToggleBanner={c.toggleBanner}
-            onAllPassed={c.allPassed}
-            onConfirm={c.confirmCalls}
-          />
-        ) : state.phase === 'tricks' ? (
-          <TricksPhase
-            players={state.players}
-            calls={state.calls}
-            tricks={state.tricks}
-            error={c.trickError}
-            onSetTricks={c.setTricks}
-            onBack={c.backToCalls}
-            onConfirm={c.confirmTricks}
-          />
-        ) : (
-          <SettlePhase
-            players={state.players}
-            calls={state.calls}
-            tricks={state.tricks}
-            settlement={c.settlement}
-            onBack={c.backToTricks}
-            onConfirm={c.applySettlement}
-          />
-        )
-      ) : (
-        <Standings
+        <RoundPhase
           players={state.players}
-          ante={state.ante}
-          log={state.log}
-          onAdjust={c.adjust}
+          roles={state.roles}
+          tricks={state.tricks}
+          settlement={c.settlement}
+          trickError={c.trickError}
+          anybodyIn={c.anybodyIn}
+          onSetRole={c.setRole}
+          onSetTricks={c.setTricks}
+          onAnteAgain={c.anteAgain}
+          onSettle={c.applySettlement}
         />
+      ) : (
+        <Standings players={state.players} ante={state.ante} log={state.log} onAdjust={c.adjust} />
       )}
 
       <nav className="fixed bottom-0 inset-x-0 max-w-lg mx-auto safe-bottom px-5 pt-3 bg-gradient-to-t from-[#0b0e0c] via-[#0b0e0c]/95 to-transparent">

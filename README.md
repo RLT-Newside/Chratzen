@@ -6,7 +6,7 @@ Zwei Modi:
 
 | Modus | Status | Was er macht |
 |---|---|---|
-| **Companion** (Pott-Manager) | ✅ | Ihr spielt mit echten Karten. Die App führt Pott, Ansagen, Stiche, Bete/Sack und die Kasse. **Braucht keinen Server.** |
+| **Companion** (Kasse) | ✅ | Ihr spielt mit echten Karten und sagt am Tisch an. Die App führt **nur die Kasse**: Grundeinsatz, Pott, Ausschüttung, Bete. **Braucht keinen Server.** |
 | **Digital** (Multiplayer) | ✅ | Raumcode, virtueller Tisch, Austeilen/Tauschen/Stechen automatisch, Wiedereinstieg per Token. |
 
 ## Wer führt den Tisch?
@@ -53,7 +53,7 @@ src/
   lib/host.ts         Tischwirt: Räume, Sitzungen, Rauswurf — ohne Transport
   lib/protocol.ts     JSON-Nachrichten zwischen Gast und Tischwirt
   lib/transport.ts    WebSocket-Gast bzw. Host-in-der-WebView
-  hooks/useCompanion  Companion-Zustand (localStorage, Undo)
+  hooks/useCompanion  Kassen-Zustand des Companion (localStorage, Undo)
   hooks/useOnline     Verbindung, Sitzungs-Token, Auto-Reconnect
   components/         Button/Card/Segmented/Stepper, Spielkarte, Jass-Farben
   screens/            MainMenu, companion/*, digital/*
@@ -90,29 +90,41 @@ Draht sprechen kann.
 | `{t:'error', message}` | abgelehnte Aktion |
 | `{t:'kicked'}` | Sitzung entwertet |
 
-## Regeln (wie implementiert)
+## Geld (gilt für beide Modi)
 
 - **Grundeinsatz** 0.50 / 1.00 / 2.00 CHF. Alle legen ein, sobald der Pott leer ist.
-- **Kratzen** = mind. 2 Stiche, **Mitgehen** = mind. 1 Stich, **Weiter** = aussetzen.
-- **Letzter**: muss mitgehen, wenn sonst niemand mitgeht — sonst freie Wahl.
 - **Ausschüttung**: gewichtet nach erzielten Stichen.
   `2:1 → ⅔/⅓`, `2:1:1 → ½/¼/¼`. Rappen-genau (Largest Remainder).
-- **Strafe**: Kratzer unter 2 Stichen bzw. Mitgeher ohne Stich zahlt den vollen Pott nach.
+- **Bete**: Kratzer unter 2 Stichen bzw. Mitgeher ohne Stich zahlt den vollen Pott nach.
   Mehrere Verlierer zahlen je den vollen Betrag → das ist der neue Pott.
+- Gerechnet wird durchgehend in **Rappen als Integer** — keine Float-Rundungsfehler,
+  am Ende des Abends geht die Kasse exakt auf.
+
+## Companion: nur die Kasse
+
+Angesagt, getauscht und gestochen wird am Tisch. Die App modelliert den Ablauf
+bewusst nicht — kein Geber, kein Trumpf, keine Ansagerunde, kein Letzter, keine
+Bannerrunde. Pro Runde braucht sie nur zwei Angaben pro Spieler:
+
+- **Rolle** — raus / kratzt / mit (bestimmt die Strafschwelle: 2 bzw. 1 Stich)
+- **Stiche** — 0 bis 4, müssen zusammen 4 ergeben
+
+Daraus fallen Ausschüttung, Bete und der neue Pott heraus. Hat niemand gespielt
+und ihr habt neu gemischt: ein Knopf, alle legen nochmals ein. Dazu eine Kasse
+mit Verlauf, manueller Korrektur und Rückgängig.
+
+## Digitaler Modus: volle Regeln
+
+- **Kratzen** = mind. 2 Stiche, **Mitgehen** = mind. 1 Stich, **Weiter** = aussetzen.
+- **Letzter**: muss mitgehen, wenn sonst niemand mitgeht — sonst freie Wahl.
 - **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein.
 - **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen.
-  (Companion-Modus: als Umschalter, da mit echten Karten gespielt wird.)
-
-Nur digitaler Modus:
-
 - Austeilen einzeln reihum, 4 Karten; die letzte Karte des Gebers wird als Trumpf aufgedeckt.
 - **Tausch** 0–4 Karten. Wer alle 4 tauscht, zieht 5 und wirft vor dem Ausspielen
   eine **Schlafkarte** verdeckt ab.
 - Kartenrang 6 < 7 < 8 < 9 < 10 < U < O < K < A, Trumpf schlägt Farbe.
   **Farbzwang** (bedienen wenn möglich), kein Stichzwang — anpassbar in `src/lib/cards.ts`.
 - Ausspielen beginnt links vom Geber beim ersten Spieler, der noch dabei ist.
-
-Geld wird intern durchgehend in **Rappen als Integer** gerechnet — keine Float-Rundungsfehler.
 
 ## Host-Rechte (digitaler Modus)
 

@@ -87,8 +87,8 @@ export function Setup({
       </div>
 
       <Card className="mt-8 text-xs text-white/45 leading-relaxed">
-        Der Geber wechselt nach jeder Runde reihum. Die Sitzreihenfolge oben entspricht der
-        Reihenfolge am Tisch.
+        Gespielt und angesagt wird am Tisch. Die App führt nur die Kasse: sie sammelt den
+        Grundeinsatz ein, schüttet den Pott nach Stichen aus und zieht die Bete ein.
       </Card>
 
       <Button

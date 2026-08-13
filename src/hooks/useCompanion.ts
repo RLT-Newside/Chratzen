@@ -1,23 +1,14 @@
 import { useCallback, useMemo } from 'react'
 import { ANTE_OPTIONS } from '../lib/money'
-import {
-  type Call,
-  type Entry,
-  MAX_TRUMP_FLIPS,
-  bannerCalls,
-  isPlaying,
-  settleRound,
-  validateCalls,
-  validateTricks,
-} from '../lib/rules'
+import { type Call, type Entry, isPlaying, settleRound, validateTricks } from '../lib/rules'
 import { usePersistedState } from './usePersistedState'
 
 export type Player = { id: string; name: string; balance: number }
 
-/** calls → Ansagen, tricks → Stiche, settle → Abrechnung bestätigen. */
-export type Phase = 'calls' | 'tricks' | 'settle'
+/** Im Companion-Modus nur die Rollen, die für die Kasse zählen. */
+export type Role = Extract<Call, 'weiter' | 'kratzen' | 'mitgehen'>
 
-export type LogRow = { name: string; call: Call; tricks: number; delta: number }
+export type LogRow = { name: string; role: Role; tricks: number; delta: number }
 export type LogEntry = {
   round: number
   pot: number
@@ -25,49 +16,43 @@ export type LogEntry = {
   rows: LogRow[]
 }
 
+/**
+ * Der Companion führt nur die Kasse — gespielt und angesagt wird am Tisch.
+ * Deshalb kein Geber, kein Trumpf, keine Ansagerunde: pro Runde braucht es nur,
+ * wer mitgespielt hat und wie viele Stiche er geholt hat.
+ */
 export type CompanionState = {
   ante: number
   players: Player[]
-  dealerIndex: number
   pot: number
   round: number
-  /** Wie oft in dieser Runde schon ein neuer Trumpf aufgedeckt wurde. */
-  flips: number
-  banner: boolean
-  calls: Record<string, Call>
+  roles: Record<string, Role>
   tricks: Record<string, number>
-  phase: Phase
   log: LogEntry[]
-  /** Ein Schnappschuss-Stack für "Rückgängig" (max. 10). */
+  /** Schnappschuss-Stack für "Rückgängig" (max. 10). */
   past: Omit<CompanionState, 'past'>[]
 }
 
-const STORAGE_KEY = 'chratzen.companion.v1'
+const STORAGE_KEY = 'chratzen.companion.v2'
 
 export const emptyState: CompanionState = {
   ante: ANTE_OPTIONS[1],
   players: [],
-  dealerIndex: 0,
   pot: 0,
   round: 1,
-  flips: 0,
-  banner: false,
-  calls: {},
+  roles: {},
   tricks: {},
-  phase: 'calls',
   log: [],
   past: [],
 }
 
-function blankCalls(players: Player[]): Record<string, Call> {
-  return Object.fromEntries(players.map((p) => [p.id, 'weiter' as Call]))
-}
+const blankRoles = (players: Player[]): Record<string, Role> =>
+  Object.fromEntries(players.map((p) => [p.id, 'weiter' as Role]))
 
-function blankTricks(players: Player[]): Record<string, number> {
-  return Object.fromEntries(players.map((p) => [p.id, 0]))
-}
+const blankTricks = (players: Player[]): Record<string, number> =>
+  Object.fromEntries(players.map((p) => [p.id, 0]))
 
-/** Jeder zahlt den Grundeinsatz in den Pott. */
+/** Jeder legt den Grundeinsatz in den Pott. */
 function collectAnte(s: CompanionState): CompanionState {
   return {
     ...s,
@@ -88,99 +73,71 @@ export function useCompanion() {
     () =>
       state.players.map((p) => ({
         playerId: p.id,
-        call: state.calls[p.id] ?? 'weiter',
+        call: state.roles[p.id] ?? 'weiter',
         tricks: state.tricks[p.id] ?? 0,
       })),
-    [state.players, state.calls, state.tricks],
+    [state.players, state.roles, state.tricks],
   )
 
   const settlement = useMemo(() => settleRound(state.pot, entries), [state.pot, entries])
-
-  const callError = useMemo(
-    () => validateCalls(entries.map((e) => e.call)),
-    [entries],
-  )
   const trickError = useMemo(() => validateTricks(entries), [entries])
+  const anybodyIn = useMemo(() => entries.some((e) => isPlaying(e.call)), [entries])
 
-  /** Runde starten: Pott aus Strafen übernehmen, sonst neu anten. */
-  const beginRound = useCallback((s: CompanionState, pot: number, round: number): CompanionState => {
-    const next: CompanionState = {
-      ...s,
-      pot,
-      round,
-      flips: 0,
-      banner: false,
-      calls: blankCalls(s.players),
-      tricks: blankTricks(s.players),
-      phase: 'calls',
-    }
-    return pot === 0 ? collectAnte(next) : next
-  }, [])
+  /** Runde eröffnen: Pott aus den Strafen übernehmen, sonst neu einlegen. */
+  const beginRound = useCallback(
+    (s: CompanionState, pot: number, round: number): CompanionState => {
+      const next: CompanionState = {
+        ...s,
+        pot,
+        round,
+        roles: blankRoles(s.players),
+        tricks: blankTricks(s.players),
+      }
+      return pot === 0 ? collectAnte(next) : next
+    },
+    [],
+  )
 
   /**
-   * Spielerliste + Grundeinsatz setzen. Bestehende Kontostände bleiben erhalten,
-   * damit man am Stammtisch jemanden nachtragen kann.
+   * Spielerliste und Grundeinsatz setzen. Bestehende Kontostände bleiben, damit
+   * man am Stammtisch jemanden nachtragen kann.
    */
   const configure = useCallback(
     (names: string[], ante: number) => {
       setState((s) => {
         const players: Player[] = names.map((name, i) => {
           const old = s.players[i]
-          return { id: old?.id ?? `p${i}-${name}-${Math.random().toString(36).slice(2, 7)}`, name, balance: old?.balance ?? 0 }
+          return {
+            id: old?.id ?? `p${i}-${Math.random().toString(36).slice(2, 8)}`,
+            name,
+            balance: old?.balance ?? 0,
+          }
         })
         const fresh: CompanionState = { ...s, ante, players, past: [] }
-        // Läuft schon eine Runde? Dann nur Roster aktualisieren, nicht neu anten.
+        // Läuft schon eine Runde? Dann nur die Liste anpassen, nicht neu einlegen.
         if (s.players.length > 0 && s.pot > 0) {
-          return { ...fresh, calls: { ...blankCalls(players), ...s.calls }, tricks: { ...blankTricks(players), ...s.tricks } }
+          return {
+            ...fresh,
+            roles: { ...blankRoles(players), ...s.roles },
+            tricks: { ...blankTricks(players), ...s.tricks },
+          }
         }
-        return beginRound({ ...fresh, dealerIndex: 0, log: [] }, 0, 1)
+        return beginRound({ ...fresh, log: [] }, 0, 1)
       })
     },
     [setState, beginRound],
   )
 
-  const setCall = useCallback(
-    (id: string, call: Call) => setState((s) => ({ ...s, calls: { ...s.calls, [id]: call } })),
+  const setRole = useCallback(
+    (id: string, role: Role) =>
+      setState((s) => ({
+        ...s,
+        roles: { ...s.roles, [id]: role },
+        // Wer raus ist, kann keine Stiche haben.
+        tricks: role === 'weiter' ? { ...s.tricks, [id]: 0 } : s.tricks,
+      })),
     [setState],
   )
-
-  const toggleBanner = useCallback(
-    () =>
-      setState((s) => {
-        const on = !s.banner
-        if (!on) return { ...s, banner: false, calls: blankCalls(s.players) }
-        const forced = bannerCalls(s.players.length, s.dealerIndex)
-        return {
-          ...s,
-          banner: true,
-          calls: Object.fromEntries(s.players.map((p, i) => [p.id, forced[i]])),
-        }
-      }),
-    [setState],
-  )
-
-  /** Alle sagen "Weiter": neuen Trumpf aufdecken — nach 3× neu mischen + neu anten. */
-  const allPassed = useCallback(
-    () =>
-      setState((s) => {
-        const flips = s.flips + 1
-        const base = { ...snapshot(s), calls: blankCalls(s.players), banner: false }
-        if (flips < MAX_TRUMP_FLIPS) return { ...base, flips }
-        const reshuffled = collectAnte({ ...base, flips: 0 })
-        return {
-          ...reshuffled,
-          log: [
-            ...s.log,
-            { round: s.round, pot: reshuffled.pot, note: '3× niemand gespielt — neu gemischt, alle nachgelegt', rows: [] },
-          ],
-        }
-      }),
-    [setState],
-  )
-
-  const confirmCalls = useCallback(() => setState((s) => ({ ...s, phase: 'tricks' })), [setState])
-  const backToCalls = useCallback(() => setState((s) => ({ ...s, phase: 'calls' })), [setState])
-  const backToTricks = useCallback(() => setState((s) => ({ ...s, phase: 'tricks' })), [setState])
 
   const setTricks = useCallback(
     (id: string, n: number) =>
@@ -188,7 +145,20 @@ export function useCompanion() {
     [setState],
   )
 
-  const confirmTricks = useCallback(() => setState((s) => ({ ...s, phase: 'settle' })), [setState])
+  /** Niemand hat gespielt oder es wurde neu gemischt: alle legen nochmals ein. */
+  const anteAgain = useCallback(
+    () =>
+      setState((s) => {
+        const next = collectAnte(snapshot(s))
+        return {
+          ...next,
+          roles: blankRoles(s.players),
+          tricks: blankTricks(s.players),
+          log: [...s.log, { round: s.round, pot: next.pot, note: 'Alle nochmals eingelegt', rows: [] }],
+        }
+      }),
+    [setState],
+  )
 
   /** Abrechnung buchen und die nächste Runde eröffnen. */
   const applySettlement = useCallback(
@@ -196,15 +166,14 @@ export function useCompanion() {
       setState((s) => {
         const rows: LogRow[] = []
         const players = s.players.map((p) => {
-          const call = s.calls[p.id] ?? 'weiter'
+          const role = s.roles[p.id] ?? 'weiter'
           const delta = (settlement.payouts[p.id] ?? 0) - (settlement.penalties[p.id] ?? 0)
-          if (isPlaying(call)) rows.push({ name: p.name, call, tricks: s.tricks[p.id] ?? 0, delta })
+          if (isPlaying(role)) rows.push({ name: p.name, role, tricks: s.tricks[p.id] ?? 0, delta })
           return { ...p, balance: p.balance + delta }
         })
         const booked: CompanionState = {
           ...snapshot(s),
           players,
-          dealerIndex: (s.dealerIndex + 1) % s.players.length,
           log: [...s.log, { round: s.round, pot: settlement.potBefore, rows }],
         }
         return beginRound(booked, settlement.potAfter, s.round + 1)
@@ -235,20 +204,14 @@ export function useCompanion() {
 
   return {
     state,
-    entries,
     settlement,
-    callError,
     trickError,
+    anybodyIn,
     canUndo: state.past.length > 0,
     configure,
-    setCall,
-    toggleBanner,
-    allPassed,
-    confirmCalls,
-    backToCalls,
-    backToTricks,
+    setRole,
     setTricks,
-    confirmTricks,
+    anteAgain,
     applySettlement,
     adjust,
     undo,

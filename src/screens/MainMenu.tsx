@@ -79,8 +79,8 @@ export function MainMenu({ onSelect }: { onSelect: (m: Mode) => void }) {
           tag="Pott-Manager für den Stammtisch"
           lines={[
             'Ihr spielt mit echten Karten.',
-            'Die App führt Pott, Ansagen und Kasse.',
-            'Bete/Sack werden automatisch verrechnet.',
+            'Die App führt nur die Kasse.',
+            'Pott, Ausschüttung und Bete rechnet sie aus.',
           ]}
           icon={<Coins className="w-5 h-5" />}
           accent="bg-brand"

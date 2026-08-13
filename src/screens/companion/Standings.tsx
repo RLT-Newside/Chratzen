@@ -99,7 +99,7 @@ export function Standings({
                           {r.name}
                           <span className="text-white/25">
                             {' '}
-                            · {r.call === 'kratzen' ? 'Kratzer' : 'Mit'} · {r.tricks}
+                            · {r.role === 'kratzen' ? 'Kratzer' : 'Mit'} · {r.tricks}
                           </span>
                         </span>
                         <span
