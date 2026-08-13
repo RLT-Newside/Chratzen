@@ -6,6 +6,8 @@
  * Dadurch läuft dieselbe Logik unverändert im Node-Server (viele Räume) und im
  * Host-Handy, wo ein natives Plugin die Verbindungen durchreicht (ein Raum).
  */
+import { botCall, botDiscard, botExchange, botName, botPlay } from './bot'
+import { type Card, cardId, legalCards } from './cards'
 import {
   type Game,
   applyCall,
@@ -147,9 +149,11 @@ export class TableHost {
     }
 
     // Host-Rolle darf nie bei einem Offline-Spieler hängen bleiben, sonst kann
-    // niemand mehr die nächste Runde starten oder einen Zug erzwingen.
+    // niemand mehr die nächste Runde starten oder einen Zug erzwingen. Bots
+    // scheiden aus: sie drücken keine Knöpfe.
     if (room.game.hostId === link.playerId) {
-      const heir = room.game.players.find((p) => p.connected) ?? room.game.players[0]
+      const humans = room.game.players.filter((p) => !p.bot)
+      const heir = humans.find((p) => p.connected) ?? humans[0]
       if (heir) room.game.hostId = heir.id
     }
 
@@ -262,6 +266,20 @@ export class TableHost {
       case 'force':
         err = forceMove(g, me)
         break
+      case 'addBot':
+        if (g.hostId !== me) err = 'Nur der Host kann Bots setzen.'
+        else if (g.phase !== 'lobby') err = 'Bots nur in der Lobby.'
+        else if (g.players.length >= MAX_PLAYERS) err = 'Tisch ist voll.'
+        else {
+          g.players.push({
+            id: this.randomId(),
+            name: botName(g.players.map((p) => p.name)),
+            balance: 0,
+            connected: true,
+            bot: true,
+          })
+        }
+        break
       case 'kick': {
         err = kickPlayer(g, me, msg.playerId)
         // Sofort entfernt (Lobby)? Dann Sitzung entwerten und Verbindung lösen.
@@ -284,9 +302,66 @@ export class TableHost {
   }
 
   /**
-   * Regelmässig aufrufen: räumt tote Räume ab und schickt einen Zustand, sobald
-   * die Trödelgrenze erreicht ist — sonst würde der Host nie mitbekommen, dass
-   * er einspringen darf, weil ja gerade nichts passiert.
+   * Ein Zug pro Tick, wenn ein Bot dran ist. Bewusst nicht alle auf einmal:
+   * so ziehen die Bots im Takt des Ticks und man kann zuschauen.
+   */
+  private stepBot(room: Room): Outgoing[] {
+    const g = room.game
+    const actor = currentActor(g)
+    const trump = g.trump?.suit
+    if (!actor?.bot || !trump) return []
+
+    const hand = g.hands[actor.id] ?? []
+    let err: string | null = null
+
+    switch (g.phase) {
+      case 'calls':
+        err = applyCall(
+          g,
+          actor.id,
+          botCall({
+            hand,
+            trump,
+            someoneKratzed: g.players.some((p) => g.calls[p.id] === 'kratzen'),
+            awaitLetzter: g.awaitLetzter,
+            isLastToSpeak: g.callsLeft <= 1,
+          }),
+        )
+        break
+      case 'exchange':
+        err = applyExchange(g, actor.id, botExchange(hand, trump))
+        break
+      case 'sleeper':
+        err = applySleeperDiscard(g, actor.id, botDiscard(hand, trump))
+        break
+      case 'play':
+        err = playCard(g, actor.id, botPlay(actor.id, hand, g.trick, trump))
+        break
+      default:
+        return []
+    }
+
+    // Ein Bot darf die Runde nie blockieren: lehnt die Engine seinen Zug ab,
+    // kommt die harmlose Variante.
+    if (err) this.fallbackMove(g, actor.id, hand)
+    return this.broadcast(room)
+  }
+
+  private fallbackMove(g: Game, id: string, hand: Card[]) {
+    const lead = g.trick[0]?.card.suit ?? null
+    if (g.phase === 'calls') applyCall(g, id, 'weiter')
+    else if (g.phase === 'exchange') applyExchange(g, id, [])
+    else if (g.phase === 'sleeper' && hand[0]) applySleeperDiscard(g, id, cardId(hand[0]))
+    else if (g.phase === 'play') {
+      const legal = legalCards(hand, lead)[0]
+      if (legal) playCard(g, id, cardId(legal))
+    }
+  }
+
+  /**
+   * Regelmässig aufrufen: lässt Bots ziehen, räumt tote Räume ab und schickt
+   * einen Zustand, sobald die Trödelgrenze erreicht ist — sonst würde der Host
+   * nie mitbekommen, dass er einspringen darf, weil ja gerade nichts passiert.
    */
   tick(): Outgoing[] {
     const now = this.now()
@@ -296,6 +371,13 @@ export class TableHost {
         this.rooms.delete(code)
         continue
       }
+
+      const moved = this.stepBot(room)
+      if (moved.length > 0) {
+        out.push(...moved)
+        continue // Der Zustand ist gerade raus, die Trödel-Prüfung kann warten.
+      }
+
       const actor = currentActor(room.game)
       const stalled = !!actor && (!actor.connected || now - room.turnSince > STALL_MS)
       if (stalled !== room.game.forceAllowed) out.push(...this.broadcast(room))

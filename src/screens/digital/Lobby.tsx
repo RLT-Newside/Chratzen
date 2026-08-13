@@ -1,4 +1,4 @@
-import { Check, Copy, LogOut, UserMinus, WifiOff } from 'lucide-react'
+import { Bot, Check, Copy, LogOut, UserMinus, WifiOff } from 'lucide-react'
 import { useState } from 'react'
 import { Button, Card, SectionTitle } from '../../components/ui'
 import type { ClientGame } from '../../lib/game'
@@ -11,6 +11,7 @@ export function Lobby({
   hostInfo,
   onStart,
   onKick,
+  onAddBot,
   onLeave,
 }: {
   game: ClientGame
@@ -18,6 +19,7 @@ export function Lobby({
   hostInfo: HostInfo | null
   onStart: () => void
   onKick: (playerId: string) => void
+  onAddBot: () => void
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState(false)
@@ -137,6 +139,11 @@ export function Lobby({
                 className={`w-2 h-2 rounded-full ${p.connected ? 'bg-emerald-400' : 'bg-white/20'}`}
               />
               <span className="flex-1 truncate text-sm font-medium">{p.name}</span>
+              {p.bot && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-sky-400/15 text-sky-300 flex items-center gap-1">
+                  <Bot className="w-3 h-3" /> Bot
+                </span>
+              )}
               {p.id === game.hostId && <span className="label-caption">Host</span>}
               {p.id === game.youId && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded bg-brand/15 text-brand">Du</span>
@@ -157,15 +164,31 @@ export function Lobby({
       </div>
 
       {isHost ? (
-        <Button
-          variant="primary"
-          size="lg"
-          className="w-full mt-8"
-          disabled={game.players.length < 2}
-          onClick={onStart}
-        >
-          {game.players.length < 2 ? 'Warte auf Mitspieler …' : 'Partie starten'}
-        </Button>
+        <>
+          <Button
+            className="w-full mt-3 flex items-center justify-center gap-2"
+            disabled={game.players.length >= 8}
+            onClick={onAddBot}
+          >
+            <Bot className="w-4 h-4" /> Bot dazusetzen
+          </Button>
+          {game.players.length < 2 && (
+            <p className="text-xs text-white/35 mt-2 leading-relaxed text-center">
+              Allein am Tisch? Setz einen Bot dazu — er kratzt und geht mit, damit
+              gespielt wird.
+            </p>
+          )}
+
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full mt-6"
+            disabled={game.players.length < 2}
+            onClick={onStart}
+          >
+            {game.players.length < 2 ? 'Mindestens zu zweit' : 'Partie starten'}
+          </Button>
+        </>
       ) : (
         <p className="text-center text-sm text-white/40 mt-8">
           Warten, bis der Host startet …

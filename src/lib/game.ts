@@ -32,6 +32,8 @@ export type GPlayer = {
   name: string
   balance: number
   connected: boolean
+  /** Wird vom Tischwirt gespielt, hat keine Verbindung und trödelt nie. */
+  bot?: boolean
 }
 
 export type Game = {

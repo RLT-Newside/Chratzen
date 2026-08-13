@@ -13,6 +13,8 @@ import { type ClientMsg, type Outgoing, type ServerMsg, decode, encode } from '.
 export const DEFAULT_HOST_PORT = 3001
 /** Fester WS-Pfad — trennt den Upgrade sauber von den statischen Dateien. */
 const WS_PATH = '/ws'
+/** Taktgeber für Bot-Züge und Aufräumarbeiten. */
+const BOT_TICK_MS = 800
 /** Verbindungs-ID des Hosts selbst — der spielt ohne Socket mit. */
 const SELF = 'self'
 
@@ -124,7 +126,8 @@ export function createHostTransport(
   }
   boot()
 
-  const timer = setInterval(() => dispatch(table.tick()), 5_000)
+  // Kurzer Takt: die Bots ziehen im Tickrhythmus, man kann ihnen zuschauen.
+  const timer = setInterval(() => dispatch(table.tick()), BOT_TICK_MS)
 
   return {
     send: (msg) => dispatch(table.receive(SELF, msg)),

@@ -124,6 +124,89 @@ describe('TableHost', () => {
     expect(pick(retry, 'c-beat3', 'error')?.message).toMatch(/abgelaufen/)
   })
 
+  it('setzt Bots nur als Host und nur in der Lobby', () => {
+    const host = makeHost()
+    const { code } = openTable(host)
+    join(host, 'c-beat', code, 'Beat')
+
+    expect(pick(host.receive('c-beat', { t: 'addBot' }), 'c-beat', 'error')?.message).toMatch(
+      /Nur der Host/,
+    )
+
+    const out = host.receive('c-anna', { t: 'addBot' })
+    const state = pick(out, 'c-anna', 'state')
+    expect(state?.game.players.map((p) => p.bot ?? false)).toEqual([false, false, true])
+
+    host.receive('c-anna', { t: 'start' })
+    expect(pick(host.receive('c-anna', { t: 'addBot' }), 'c-anna', 'error')?.message).toMatch(
+      /nur in der Lobby/,
+    )
+  })
+
+  it('spielt eine ganze Runde allein gegen Bots — der Mensch macht nichts', () => {
+    const host = makeHost()
+    openTable(host)
+    host.receive('c-anna', { t: 'addBot' })
+    host.receive('c-anna', { t: 'addBot' })
+
+    let state = pick(host.receive('c-anna', { t: 'start' }), 'c-anna', 'state')
+    expect(state?.game.phase).not.toBe('lobby')
+
+    // Nur ticken: solange ein Bot dran ist, zieht er. Bleibt Anna am Zug,
+    // passt sie — mehr braucht es nicht, damit die Bots die Runde tragen.
+    for (let i = 0; i < 400; i++) {
+      const out = host.tick()
+      const pushed = pick(out, 'c-anna', 'state')
+      if (pushed) state = pushed
+      const game = state?.game
+      if (!game || game.phase === 'settle') break
+
+      if (game.yourTurn && game.phase === 'calls') {
+        state = pick(host.receive('c-anna', { t: 'call', call: 'weiter' }), 'c-anna', 'state')
+      } else if (game.yourTurn && game.phase === 'play') {
+        state = pick(
+          host.receive('c-anna', { t: 'play', card: game.legal[0] }),
+          'c-anna',
+          'state',
+        )
+      } else if (game.mustDiscardSleeper) {
+        const card = game.hand[0]
+        state = pick(
+          host.receive('c-anna', { t: 'sleeper', card: `${card.suit}-${card.rank}` }),
+          'c-anna',
+          'state',
+        )
+      } else if (game.yourTurn && game.phase === 'exchange') {
+        state = pick(host.receive('c-anna', { t: 'exchange', cards: [] }), 'c-anna', 'state')
+      }
+    }
+
+    const game = state?.game
+    expect(game?.phase).toBe('settle')
+    expect(game?.settlement).toBeTruthy()
+    // Genau ein Kratzer, vier Stiche verteilt, Pott vollständig ausgeschüttet.
+    const inGame = game?.players.filter((p) => p.call === 'kratzen' || p.call === 'mitgehen') ?? []
+    expect(inGame.filter((p) => p.call === 'kratzen')).toHaveLength(1)
+    expect(inGame.reduce((a, p) => a + p.tricks, 0)).toBe(4)
+    const s = game?.settlement
+    if (!s) throw new Error('keine Abrechnung')
+    expect(Object.values(s.payouts).reduce((a, b) => a + b, 0)).toBe(s.potBefore)
+  })
+
+  it('gibt die Host-Rolle nie an einen Bot weiter', () => {
+    const host = makeHost()
+    const { code } = openTable(host)
+    join(host, 'c-beat', code, 'Beat')
+    host.receive('c-anna', { t: 'addBot' })
+    host.receive('c-anna', { t: 'start' })
+
+    host.disconnect('c-anna')
+    const state = pick(host.tick(), 'c-beat', 'state') ?? pick(host.receive('c-beat', { t: 'force' }), 'c-beat', 'state')
+    const newHost = state?.game.players.find((p) => p.id === state?.game.hostId)
+    expect(newHost?.bot ?? false).toBe(false)
+    expect(newHost?.name).toBe('Beat')
+  })
+
   it('räumt den Tisch ab, sobald der letzte Spieler in der Lobby weg ist', () => {
     const host = makeHost()
     openTable(host)

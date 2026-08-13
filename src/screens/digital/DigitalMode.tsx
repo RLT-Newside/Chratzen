@@ -32,6 +32,7 @@ export function DigitalMode({ onExit }: { onExit: () => void }) {
           hostInfo={net.hostInfo}
           onStart={net.start}
           onKick={net.kick}
+          onAddBot={net.addBot}
           onLeave={leave}
         />
       ) : (

@@ -79,6 +79,7 @@ wss.on('connection', (socket, req) => {
   socket.on('error', () => socket.close())
 })
 
-setInterval(() => flush(host.tick()), 5_000).unref()
+// Kurzer Takt: die Bots ziehen im Tickrhythmus, man kann ihnen zuschauen.
+setInterval(() => flush(host.tick()), 800).unref()
 
 http.listen(PORT, () => console.log(`Chratzen-Server läuft auf :${PORT}`))

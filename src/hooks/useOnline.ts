@@ -167,6 +167,7 @@ export function useOnline() {
     play: (card: string) => send({ t: 'play', card }),
     next: () => send({ t: 'next' }),
     kick: (playerId: string) => send({ t: 'kick', playerId }),
+    addBot: () => send({ t: 'addBot' }),
     force: () => send({ t: 'force' }),
   }
 }

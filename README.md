@@ -50,7 +50,8 @@ src/
   lib/rules.ts        Chratzen-Regelwerk, rein funktional (gilt für beide Modi)
   lib/cards.ts        36er-Deck, Stichvergleich, Farbzwang
   lib/game.ts         Autoritative Engine + Redaction pro Spieler
-  lib/host.ts         Tischwirt: Räume, Sitzungen, Rauswurf — ohne Transport
+  lib/host.ts         Tischwirt: Räume, Sitzungen, Rauswurf, Bot-Takt
+  lib/bot.ts          Bot-Heuristik: ansagen, tauschen, ausspielen
   lib/protocol.ts     JSON-Nachrichten zwischen Gast und Tischwirt
   lib/transport.ts    WebSocket-Gast bzw. Host-in-der-WebView
   hooks/useCompanion  Kassen-Zustand des Companion (localStorage, Undo)
@@ -82,6 +83,7 @@ Draht sprechen kann.
 | `{t:'next'}` | nächste Runde (nur Host) |
 | `{t:'kick', playerId}` | rauswerfen (nur Host) |
 | `{t:'force'}` | hängenden Zug übernehmen (nur Host) |
+| `{t:'addBot'}` | Bot dazusetzen (nur Host, nur in der Lobby) |
 
 | Tischwirt → Gast | |
 |---|---|
@@ -158,6 +160,30 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
 - Kartenrang 6 < 7 < 8 < 9 < 10 < U < O < K < A, Trumpf schlägt Farbe.
   **Farbzwang** (bedienen wenn möglich), kein Stichzwang — anpassbar in `src/lib/cards.ts`.
 - Ausspielen beginnt links vom Geber beim ersten Spieler, der noch dabei ist.
+
+## Bots
+
+Allein am Tisch? Der Host setzt in der Lobby Bots dazu (*Bot dazusetzen*), dann
+lässt sich zu zweit starten. Bots kratzen, gehen mit, tauschen und spielen aus.
+Rauswerfen geht wie bei Menschen.
+
+Sie laufen im `TableHost`, also auf dem Host-Handy genauso wie auf dem Server.
+Pro Tick (800 ms) zieht höchstens einer — so kann man ihnen zuschauen, statt
+dass die Runde in einem Sprung durchrauscht.
+
+Die Strategie (`src/lib/bot.ts`) ist eine Heuristik, kein Löser — bei vier
+Karten und vier Stichen bringt Suchen wenig:
+
+- **Ansage** nach geschätzten Stichen: hohe Trümpfe fast sicher, kleine oft, ein
+  Ass manchmal. Ab ~1.8 wird gekratzt, ab 0.8 mitgegangen. Als Letzter, wenn
+  sonst niemand will, reicht 1.0 — sonst wird ewig neu aufgedeckt.
+- **Tausch**: Trümpfe und Könige/Asse bleiben, der Rest fliegt.
+- **Ausspielen**: vorne die stärkste Karte, sonst den Stich möglichst billig
+  gewinnen, und wenn er nicht zu holen ist, die schwächste Karte abwerfen.
+
+Bots werden nie Host — geht der Host offline, erbt ein Mensch. Lehnt die Engine
+einen Bot-Zug einmal ab, springt eine garantiert legale Notvariante ein, damit
+die Runde nicht hängen bleibt.
 
 ## Host-Rechte (digitaler Modus)
 

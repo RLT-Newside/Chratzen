@@ -21,6 +21,7 @@ export type ClientMsg =
   | { t: 'next' }
   | { t: 'kick'; playerId: string }
   | { t: 'force' }
+  | { t: 'addBot' }
 
 export type ServerMsg =
   | { t: 'joined'; code: string; token: string }
