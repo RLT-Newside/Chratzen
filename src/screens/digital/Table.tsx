@@ -86,12 +86,12 @@ export function Table({
           <div className="text-center">
             <p className="label-caption mb-1">Trumpf</p>
             <PlayingCard card={game.trump} size="sm" />
-            {/* Der erste Trumpf ist die letzte Karte des Gebers und bleibt bei
-                ihm — sonst wundert man sich, warum man sie auf der Hand hat. */}
+            {/* Normalerweise liegt die Trumpfkarte auf dem Tisch. Nur der
+                Blinde nimmt sie in die Hand — das gehört angeschrieben. */}
             {game.trumpInHand && (
-              <p className="text-[10px] text-white/30 mt-1">
+              <p className="text-[10px] text-brand/60 mt-1">
                 {game.dealerIndex === game.players.findIndex((p) => p.id === game.youId)
-                  ? 'deine Karte'
+                  ? 'bei dir'
                   : `bei ${game.players[game.dealerIndex]?.name}`}
               </p>
             )}
@@ -250,9 +250,10 @@ export function Table({
             <div>
               <p className="text-center text-xs text-white/50 leading-relaxed mb-3">
                 Du hast ausgeteilt und nur den Trumpf gesehen. Beim Blinden kratzt du,
-                ohne deine Karten zu kennen — dafür behältst du den{' '}
-                {RANK_NAME[game.trump?.rank ?? 6]} und bekommst vier frische dazu. Eine
-                davon wirfst du vor dem Ausspielen wieder ab.
+                ohne deine Karten zu kennen — dafür bekommst du den{' '}
+                {RANK_NAME[game.trump?.rank ?? 6]} vom Tisch und vier frische dazu. Deine
+                ausgeteilten Karten gehen ungesehen weg, und eine der fünf wirfst du vor
+                dem Ausspielen wieder ab.
               </p>
               <div className="flex gap-2">
                 <Button size="lg" className="flex-1" onClick={() => onBlind(false)}>

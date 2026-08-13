@@ -51,10 +51,9 @@ export type Game = {
   hands: Record<string, Card[]>
   trump: Card | null
   /**
-   * Der erste Trumpf ist die letzte ausgeteilte Karte und bleibt in der Hand
-   * des Gebers. Ein nachgezogener Trumpf gehört dagegen niemandem. Ohne diese
-   * Unterscheidung landet die Handkarte beim Neuaufdecken im Ablagestapel und
-   * wird später ein zweites Mal ausgeteilt.
+   * Die aufgedeckte Trumpfkarte liegt auf dem Tisch und gehört niemandem — nur
+   * der Blinde nimmt sie in die Hand. Dann darf sie beim Neuaufdecken nicht auf
+   * den Ablagestapel, sonst wäre sie doppelt im Spiel.
    */
   trumpInHand: boolean
   calls: Record<string, Call>
@@ -151,9 +150,9 @@ function collectAnte(g: Game) {
 }
 
 /** Trumpf aufdecken und prüfen, ob es eine Bannerrunde ist. */
-function revealTrump(g: Game, card: Card, fromHand: boolean) {
+function revealTrump(g: Game, card: Card, freshDeal: boolean) {
   g.trump = card
-  g.trumpInHand = fromHand
+  g.trumpInHand = false
   g.calls = Object.fromEntries(g.players.map((p) => [p.id, 'weiter' as Call]))
   g.awaitLetzter = false
   g.callOrder = []
@@ -175,7 +174,7 @@ function revealTrump(g: Game, card: Card, fromHand: boolean) {
 
   // Nur direkt nach dem Austeilen: der Geber hat erst den Trumpf gesehen und
   // darf blind kratzen. Nach einem Neuaufdecken kennt er seine Karten längst.
-  if (fromHand) {
+  if (freshDeal) {
     g.phase = 'blind'
     g.blindOffer = g.players[g.dealerIndex].id
     g.turn = g.dealerIndex
@@ -193,13 +192,11 @@ export function declareBlind(g: Game, playerId: string): string | null {
   if (g.phase !== 'blind') return 'Gerade kein Blinder möglich.'
   if (g.blindOffer !== playerId) return 'Nur der Geber kann blind kratzen.'
 
-  const trumpId = cardId(g.trump as Card)
-  const hand = g.hands[playerId] ?? []
-  const keep = hand.filter((c) => cardId(c) === trumpId)
-  if (keep.length === 0) return 'Die Trumpfkarte liegt nicht mehr beim Geber.'
-
-  for (const c of hand.filter((x) => cardId(x) !== trumpId)) g.discards.push(c)
-  g.hands[playerId] = keep
+  // Die ausgeteilten Karten gehen ungesehen weg; er nimmt die Trumpfkarte vom
+  // Tisch und bekommt vier frische dazu.
+  for (const c of g.hands[playerId] ?? []) g.discards.push(c)
+  g.hands[playerId] = [g.trump as Card]
+  g.trumpInHand = true
   for (let k = 0; k < 4; k++) g.hands[playerId].push(draw(g))
 
   g.blind = true
@@ -238,16 +235,14 @@ function deal(g: Game) {
   g.trick = []
   g.blind = false
 
-  let last: Card | null = null
   for (let round = 0; round < 4; round++) {
     for (let k = 0; k < g.players.length; k++) {
-      const p = at(g, g.dealerIndex + 1 + k)
-      last = draw(g)
-      g.hands[p.id].push(last)
+      g.hands[at(g, g.dealerIndex + 1 + k).id].push(draw(g))
     }
   }
-  // Die letzte Karte des Gebers wird aufgedeckt und bleibt in seiner Hand.
-  revealTrump(g, last as Card, true)
+  // Die letzte Karte deckt der Geber auf: sie bestimmt den Trumpf und bleibt
+  // auf dem Tisch liegen. Nur ein Blinder nimmt sie später in die Hand.
+  revealTrump(g, draw(g), true)
 }
 
 /**
@@ -610,7 +605,7 @@ export type ClientGame = {
   phase: GamePhase
   hand: Card[]
   trump: Card | null
-  /** Der Trumpf ist die aufgedeckte Handkarte des Gebers, nicht vom Stapel. */
+  /** Die Trumpfkarte liegt nicht mehr auf dem Tisch — der Blinde hat sie genommen. */
   trumpInHand: boolean
   turn: number
   awaitLetzter: boolean

@@ -83,8 +83,8 @@ const chips = (g: Game) => g.players.reduce((a, p) => a + p.balance, 0) + g.pot
 
 /**
  * Jede Karte existiert genau einmal — auf einer Hand, im Stapel, im Ablagestapel
- * oder im laufenden Stich. Der aufgedeckte Trumpf zählt nur mit, wenn er nicht
- * ohnehin schon in der Hand des Gebers liegt.
+ * oder im laufenden Stich. Die aufgedeckte Trumpfkarte zählt als eigene Karte
+ * auf dem Tisch, ausser der Blinde hat sie in die Hand genommen.
  */
 function everyCard(g: Game): string[] {
   const all = [
@@ -108,15 +108,21 @@ function expectNoDuplicates(g: Game) {
 }
 
 describe('Austeilen', () => {
-  it('gibt jedem 4 Karten und deckt die letzte Karte des Gebers als Trumpf auf', () => {
+  it('gibt jedem 4 Karten; die Trumpfkarte liegt auf dem Tisch und gehört niemandem', () => {
     const g = makeGame(['A', 'B', 'C'])
     startRound(g)
     expect(g.pot).toBe(300)
     for (const p of g.players) expect(g.hands[p.id]).toHaveLength(4)
-    const dealerHand = g.hands[g.players[g.dealerIndex].id]
-    expect(cardId(dealerHand[dealerHand.length - 1])).toBe(cardId(g.trump as Card))
-    // 36 − 3×4 ausgeteilt
-    expect(g.deck).toHaveLength(24)
+
+    // Der Trumpf darf auf keiner Hand liegen — sonst hätte ihn jemand doppelt.
+    const trumpId = cardId(g.trump as Card)
+    for (const p of g.players) {
+      expect(g.hands[p.id].map(cardId)).not.toContain(trumpId)
+    }
+    expect(g.trumpInHand).toBe(false)
+    // 36 − 3×4 ausgeteilt − 1 aufgedeckt
+    expect(g.deck).toHaveLength(23)
+    expectNoDuplicates(g)
   })
 
   it('Bannerrunde: Trumpf 10 ⇒ Geber kratzt, alle anderen gehen mit', () => {
@@ -289,9 +295,9 @@ describe('Kartenbestand', () => {
 
     // Der erste Trumpf liegt in der Hand des Gebers und darf beim Neuaufdecken
     // nicht im Ablagestapel landen — sonst wird er ein zweites Mal ausgeteilt.
-    expect(g.trumpInHand).toBe(true)
-    const dealerHand = g.hands[g.players[g.dealerIndex].id].map(cardId)
-    expect(dealerHand).toContain(cardId(g.trump as Card))
+    expect(g.trumpInHand).toBe(false)
+    const trumpId = cardId(g.trump as Card)
+    for (const p of g.players) expect(g.hands[p.id].map(cardId)).not.toContain(trumpId)
 
     declineBlind(g, g.players[g.dealerIndex].id)
     for (let flip = 0; flip < 3 && !g.banner; flip++) {
@@ -356,9 +362,10 @@ describe('Blinder', () => {
 
     const neu = g.hands[dealer.id].map(cardId)
     expect(neu).toHaveLength(5)
+    // Die Trumpfkarte kommt vom Tisch dazu, die vier ausgeteilten sind weg.
     expect(neu).toContain(cardId(g.trump as Card))
-    // Die drei ungesehenen Karten sind weg.
-    expect(neu.filter((c) => alt.includes(c))).toEqual([cardId(g.trump as Card)])
+    expect(neu.filter((c) => alt.includes(c))).toEqual([])
+    expect(g.trumpInHand).toBe(true)
 
     expect(g.blind).toBe(true)
     expect(g.calls[dealer.id]).toBe('kratzen')
