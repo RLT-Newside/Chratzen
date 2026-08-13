@@ -1,21 +1,35 @@
-import { useState } from 'react'
-import { Card, SectionTitle } from '../../components/ui'
+import { ArrowRight, PartyPopper } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { Button, Card, ConfirmDialog, SectionTitle } from '../../components/ui'
 import type { LogEntry, Player } from '../../hooks/useCompanion'
-import { formatChf } from '../../lib/money'
+import { formatChf, settleUp } from '../../lib/money'
 
 export function Standings({
   players,
   ante,
+  pot,
   log,
   onAdjust,
+  onDissolvePot,
 }: {
   players: Player[]
   ante: number
+  pot: number
   log: LogEntry[]
   onAdjust: (id: string, delta: number) => void
+  onDissolvePot: () => void
 }) {
   const [editing, setEditing] = useState(false)
+  const [askDissolve, setAskDissolve] = useState(false)
   const ranked = [...players].sort((a, b) => b.balance - a.balance)
+
+  const name = useMemo(
+    () => new Map(players.map((p) => [p.id, p.name])),
+    [players],
+  )
+  // Der offene Pott wird für die Vorschau gedanklich zurückgegeben, sonst
+  // ginge der Ausgleich nicht auf null auf.
+  const transfers = useMemo(() => settleUp(players, pot), [players, pot])
 
   return (
     <div className="animate-fade-in">
@@ -30,7 +44,7 @@ export function Standings({
           </button>
         }
       >
-        Kasse
+        Plus / Minus
       </SectionTitle>
 
       <div className="space-y-2">
@@ -42,6 +56,7 @@ export function Standings({
               <div className="flex gap-1">
                 <button
                   type="button"
+                  aria-label={`${p.name} abziehen`}
                   onClick={() => onAdjust(p.id, -ante)}
                   className="press-scale w-8 h-8 rounded-lg glass text-white/60 text-sm"
                 >
@@ -49,6 +64,7 @@ export function Standings({
                 </button>
                 <button
                   type="button"
+                  aria-label={`${p.name} gutschreiben`}
                   onClick={() => onAdjust(p.id, ante)}
                   className="press-scale w-8 h-8 rounded-lg glass text-white/60 text-sm"
                 >
@@ -73,6 +89,47 @@ export function Standings({
           Korrektur in Schritten von {formatChf(ante)} — für Bargeld-Ausgleich oder Verzähler.
         </p>
       )}
+
+      {/* Ohne Bargeld am Tisch zählt vor allem: wer schuldet wem was. */}
+      <div className="mt-8">
+        <SectionTitle>Ausgleich</SectionTitle>
+
+        {transfers.length === 0 ? (
+          <Card className="flex items-center gap-3 text-sm text-white/50">
+            <PartyPopper className="w-4 h-4 text-brand shrink-0" />
+            Alle bei null — niemand schuldet jemandem etwas.
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {transfers.map((t) => (
+              <div
+                key={`${t.from}-${t.to}`}
+                className="glass rounded-2xl p-3.5 flex items-center gap-2"
+              >
+                <span className="text-sm font-medium truncate">{name.get(t.from)}</span>
+                <ArrowRight className="w-4 h-4 text-white/25 shrink-0" />
+                <span className="text-sm font-medium truncate flex-1">{name.get(t.to)}</span>
+                <span className="font-heading text-2xl text-brand tabular leading-none">
+                  {formatChf(t.amount)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {pot > 0 && (
+          <>
+            <p className="text-xs text-white/40 mt-3 leading-relaxed">
+              Es liegen noch <span className="text-brand">{formatChf(pot)}</span> im Pott. Für
+              den Ausgleich oben sind sie gleichmässig zurückgerechnet — so sieht es aus, wenn
+              ihr jetzt aufhört. Spielt ihr weiter, ändert sich das noch.
+            </p>
+            <Button size="md" className="w-full mt-3" onClick={() => setAskDissolve(true)}>
+              Pott auflösen und Feierabend
+            </Button>
+          </>
+        )}
+      </div>
 
       <div className="mt-8">
         <SectionTitle>Verlauf</SectionTitle>
@@ -117,6 +174,25 @@ export function Standings({
           </div>
         )}
       </div>
+
+      {askDissolve && (
+        <ConfirmDialog
+          title="Pott auflösen?"
+          confirmLabel="Auflösen"
+          body={
+            <>
+              Die {formatChf(pot)} im Pott gehen gleichmässig an alle{' '}
+              {players.length} Spieler zurück. Danach stimmt der Ausgleich genau und ihr
+              könnt abrechnen.
+            </>
+          }
+          onCancel={() => setAskDissolve(false)}
+          onConfirm={() => {
+            onDissolvePot()
+            setAskDissolve(false)
+          }}
+        />
+      )}
     </div>
   )
 }

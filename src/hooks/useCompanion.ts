@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { ANTE_OPTIONS } from '../lib/money'
+import { ANTE_OPTIONS, splitByWeight } from '../lib/money'
 import {
   type Call,
   type Entry,
@@ -195,6 +195,30 @@ export function useCompanion() {
     [setState, settlement, beginRound],
   )
 
+  /**
+   * Feierabend: was im Pott liegt, kommt gleichmässig zurück. Erst danach geht
+   * der Ausgleich untereinander auf null auf.
+   */
+  const dissolvePot = useCallback(
+    () =>
+      setState((s) => {
+        if (s.pot === 0) return s
+        const shares = splitByWeight(s.pot, s.players.map(() => 1))
+        return {
+          ...snapshot(s),
+          pot: 0,
+          players: s.players.map((p, i) => ({ ...p, balance: p.balance + shares[i] })),
+          roles: blankRoles(s.players),
+          tricks: blankTricks(s.players),
+          log: [
+            ...s.log,
+            { round: s.round, pot: s.pot, note: 'Pott aufgelöst und zurückgegeben', rows: [] },
+          ],
+        }
+      }),
+    [setState],
+  )
+
   /** Manuelle Korrektur eines Kontostands (verzählt, Bargeld ausgeglichen …). */
   const adjust = useCallback(
     (id: string, delta: number) =>
@@ -227,6 +251,7 @@ export function useCompanion() {
     setTricks,
     anteAgain,
     applySettlement,
+    dissolvePot,
     adjust,
     undo,
     reset,

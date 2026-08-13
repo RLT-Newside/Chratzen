@@ -112,8 +112,26 @@ Bannerrunde. Pro Runde braucht sie nur zwei Angaben pro Spieler:
 - **Stiche** — 0 bis 4, müssen zusammen 4 ergeben
 
 Daraus fallen Ausschüttung, Bete und der neue Pott heraus. Hat niemand gespielt
-und ihr habt neu gemischt: ein Knopf, alle legen nochmals ein. Dazu eine Kasse
-mit Verlauf, manueller Korrektur und Rückgängig.
+und ihr habt neu gemischt: ein Knopf, alle legen nochmals ein.
+
+Kratzen ist exklusiv — es kratzt nur einer pro Runde. Tippst du es bei jemand
+anderem an, fragt die App nach, bevor sie wechselt: sonst verschöbe sich still
+Geld.
+
+### Kasse ohne Bargeld
+
+Gespielt wird auf Pump, abgerechnet am Schluss. Der Kasse-Tab zeigt darum zwei
+Dinge:
+
+- **Plus / Minus** — der Stand jedes Spielers, sortiert.
+- **Ausgleich** — wer zahlt wem wie viel, mit möglichst wenigen Zahlungen
+  (`settleUp` in `src/lib/money.ts`).
+
+Liegt noch Geld im Pott, geht die Rechnung nicht auf null auf. Der Ausgleich
+rechnet ihn deshalb gleichmässig zurück und zeigt, wie es aussähe, wenn ihr
+jetzt aufhört — plus einen Knopf, das auch wirklich zu buchen.
+
+Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
 
 ## Digitaler Modus: volle Regeln
 

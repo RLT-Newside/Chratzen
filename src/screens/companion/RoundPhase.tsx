@@ -1,4 +1,5 @@
-import { Button, Card, SectionTitle, Stepper } from '../../components/ui'
+import { useState } from 'react'
+import { Button, Card, ConfirmDialog, SectionTitle, Stepper } from '../../components/ui'
 import type { Player, Role } from '../../hooks/useCompanion'
 import { formatChf } from '../../lib/money'
 import { TRICKS_PER_ROUND, type Settlement, isPlaying, requiredTricks } from '../../lib/rules'
@@ -37,6 +38,15 @@ export function RoundPhase({
   onSettle: () => void
 }) {
   const total = players.reduce((a, p) => a + (tricks[p.id] ?? 0), 0)
+  const kratzer = players.find((p) => roles[p.id] === 'kratzen') ?? null
+
+  /** Wechsel des Kratzers erst nach Rückfrage — sonst verschiebt sich still Geld. */
+  const [askSwap, setAskSwap] = useState<Player | null>(null)
+
+  const chooseRole = (p: Player, role: Role) => {
+    if (role === 'kratzen' && kratzer && kratzer.id !== p.id) return setAskSwap(p)
+    onSetRole(p.id, role)
+  }
 
   return (
     <div className="animate-fade-in">
@@ -80,7 +90,7 @@ export function RoundPhase({
                     <button
                       key={r.value}
                       type="button"
-                      onClick={() => onSetRole(p.id, r.value)}
+                      onClick={() => chooseRole(p, r.value)}
                       className={`press-scale py-2 rounded-lg text-xs font-medium ${
                         role === r.value ? r.on : 'bg-white/[0.04] text-white/45 hover:bg-white/[0.08]'
                       }`}
@@ -146,6 +156,28 @@ export function RoundPhase({
             Alle legen nochmals ein
           </Button>
         </>
+      )}
+
+      {askSwap && kratzer && (
+        <ConfirmDialog
+          title="Kratzer wechseln?"
+          confirmLabel={`${askSwap.name} kratzt`}
+          body={
+            <>
+              Es kratzt nur einer pro Runde. Aktuell steht{' '}
+              <span className="text-brand">{kratzer.name}</span> als Kratzer.
+              <br />
+              <span className="text-white/85">{askSwap.name}</span> übernimmt, und{' '}
+              {kratzer.name} fällt auf <span className="text-white/85">raus</span> zurück —
+              inklusive seiner Stiche.
+            </>
+          }
+          onCancel={() => setAskSwap(null)}
+          onConfirm={() => {
+            onSetRole(askSwap.id, 'kratzen')
+            setAskSwap(null)
+          }}
+        />
       )}
     </div>
   )

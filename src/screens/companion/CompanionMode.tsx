@@ -1,6 +1,6 @@
 import { ArrowLeft, RotateCcw, Undo2, Users } from 'lucide-react'
 import { useState } from 'react'
-import { Button } from '../../components/ui'
+import { Button, ConfirmDialog } from '../../components/ui'
 import { useCompanion } from '../../hooks/useCompanion'
 import { PotHeader } from './PotHeader'
 import { RoundPhase } from './RoundPhase'
@@ -12,6 +12,7 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
   const { state } = c
   const [tab, setTab] = useState<'round' | 'kasse'>('round')
   const [editRoster, setEditRoster] = useState(false)
+  const [askReset, setAskReset] = useState(false)
 
   if (state.players.length === 0 || editRoster) {
     return (
@@ -51,16 +52,7 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
           >
             <Users className="w-4 h-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="sm"
-            aria-label="Neue Kasse"
-            onClick={() => {
-              if (confirm('Neue Kasse starten? Kontostände und Verlauf werden gelöscht.')) {
-                c.reset()
-              }
-            }}
-          >
+          <Button variant="ghost" size="sm" aria-label="Neue Kasse" onClick={() => setAskReset(true)}>
             <RotateCcw className="w-4 h-4" />
           </Button>
         </div>
@@ -82,7 +74,14 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
           onSettle={c.applySettlement}
         />
       ) : (
-        <Standings players={state.players} ante={state.ante} log={state.log} onAdjust={c.adjust} />
+        <Standings
+          players={state.players}
+          ante={state.ante}
+          pot={state.pot}
+          log={state.log}
+          onAdjust={c.adjust}
+          onDissolvePot={c.dissolvePot}
+        />
       )}
 
       <nav className="fixed bottom-0 inset-x-0 max-w-lg mx-auto safe-bottom px-5 pt-3 bg-gradient-to-t from-[#0b0e0c] via-[#0b0e0c]/95 to-transparent">
@@ -106,6 +105,20 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
           ))}
         </div>
       </nav>
+
+      {askReset && (
+        <ConfirmDialog
+          title="Neue Kasse?"
+          confirmLabel="Alles löschen"
+          danger
+          body="Kontostände, Pott und Verlauf werden gelöscht. Das lässt sich nicht rückgängig machen."
+          onCancel={() => setAskReset(false)}
+          onConfirm={() => {
+            c.reset()
+            setAskReset(false)
+          }}
+        />
+      )}
     </div>
   )
 }

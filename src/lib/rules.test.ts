@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatChf, splitByWeight } from './money'
+import { formatChf, settleUp, splitByWeight } from './money'
 import {
   type Call,
   bannerCalls,
@@ -130,6 +130,53 @@ describe('validateTricks', () => {
     expect(validateTricks([e('k', 'kratzen', 2), e('m', 'mitgehen', 2)])).toBeNull()
     expect(validateTricks([e('k', 'kratzen', 2), e('m', 'mitgehen', 1)])).toMatch(/genau 4/)
     expect(validateTricks([e('k', 'kratzen', 3), e('w', 'weiter', 1)])).toMatch(/Nur Kratzer/)
+  })
+})
+
+describe('settleUp', () => {
+  const players = (...balances: number[]) =>
+    balances.map((balance, i) => ({ id: `p${i}`, balance }))
+
+  it('gleicht mit einer Zahlung aus, wenn nur zwei betroffen sind', () => {
+    expect(settleUp(players(-450, 450))).toEqual([{ from: 'p0', to: 'p1', amount: 450 }])
+  })
+
+  it('lässt niemanden mit offenem Saldo zurück', () => {
+    const cases = [
+      [-300, 100, 200],
+      [-250, -150, 400],
+      [-100, -100, -100, 300],
+      [500, -125, -125, -250],
+      [0, 0, 0],
+    ]
+    for (const balances of cases) {
+      const list = players(...balances)
+      const net = new Map(list.map((p) => [p.id, p.balance]))
+      for (const t of settleUp(list)) {
+        net.set(t.from, (net.get(t.from) as number) + t.amount)
+        net.set(t.to, (net.get(t.to) as number) - t.amount)
+        expect(t.amount).toBeGreaterThan(0)
+      }
+      for (const rest of net.values()) expect(rest).toBe(0)
+    }
+  })
+
+  it('gibt einen offenen Pott vorher gleichmässig zurück', () => {
+    // Alle haben je 1.00 eingelegt, es liegt noch alles im Pott.
+    const list = players(-100, -100, -100)
+    expect(settleUp(list, 300)).toEqual([])
+  })
+
+  it('rechnet den Pott-Rappen sauber weg', () => {
+    const list = players(-100, -100, -100)
+    const transfers = settleUp(list, 299)
+    const moved = transfers.reduce((a, t) => a + t.amount, 0)
+    expect(moved).toBeLessThanOrEqual(1)
+  })
+
+  it('braucht keine Zahlung, wenn alle auf null sind', () => {
+    expect(settleUp(players(0, 0))).toEqual([])
+    expect(settleUp([])).toEqual([])
   })
 })
 

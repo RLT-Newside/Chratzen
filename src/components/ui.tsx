@@ -68,6 +68,53 @@ export function Segmented<T extends string | number>({
   )
 }
 
+export function ConfirmDialog({
+  title,
+  body,
+  confirmLabel = 'Übernehmen',
+  cancelLabel = 'Abbrechen',
+  danger,
+  onConfirm,
+  onCancel,
+}: {
+  title: string
+  body: ReactNode
+  confirmLabel?: string
+  cancelLabel?: string
+  danger?: boolean
+  onConfirm: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center p-6 bg-black/60 animate-fade-in">
+      {/* Klick daneben bricht ab — wie ein natives Dialogfeld. */}
+      <button
+        type="button"
+        aria-label={cancelLabel}
+        onClick={onCancel}
+        className="absolute inset-0 cursor-default"
+      />
+      <div className="glass-elevated rounded-2xl p-5 w-full max-w-sm relative">
+        <h2 className="font-heading text-2xl tracking-wide leading-none">{title}</h2>
+        <div className="text-sm text-white/60 leading-relaxed mt-3">{body}</div>
+        <div className="flex gap-2 mt-5">
+          <Button size="md" className="flex-1" onClick={onCancel}>
+            {cancelLabel}
+          </Button>
+          <Button
+            variant={danger ? 'danger' : 'primary'}
+            size="md"
+            className="flex-1"
+            onClick={onConfirm}
+          >
+            {confirmLabel}
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export function Stepper({
   value,
   onChange,
