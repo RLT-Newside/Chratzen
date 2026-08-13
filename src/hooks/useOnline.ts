@@ -1,9 +1,30 @@
+import { Capacitor } from '@capacitor/core'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { type Socket, io } from 'socket.io-client'
 import type { ClientGame } from '../lib/game'
 import type { Call } from '../lib/rules'
 
 const SESSION_KEY = 'chratzen.session.v1'
+const SERVER_KEY = 'chratzen.server'
+
+/**
+ * Im Browser wird die App vom Socket-Server selbst ausgeliefert — gleicher
+ * Origin, keine URL nötig. In der APK gibt es keinen Origin-Server, dort muss
+ * die Adresse gesetzt werden (z. B. `192.168.1.42:3001` für das Gerät im WLAN,
+ * das den Tisch hostet).
+ */
+export function getServerUrl(): string {
+  return localStorage.getItem(SERVER_KEY) ?? ''
+}
+
+export function setServerUrl(raw: string) {
+  const value = raw.trim().replace(/\/+$/, '')
+  if (!value) return localStorage.removeItem(SERVER_KEY)
+  localStorage.setItem(SERVER_KEY, /^https?:\/\//.test(value) ? value : `http://${value}`)
+}
+
+/** In der App gibt es keinen Origin-Server — dort ist die Adresse Pflicht. */
+export const isNative = Capacitor.isNativePlatform()
 
 type Session = { code: string; token: string }
 type Ack = { ok: boolean; code?: string; token?: string; error?: string }
@@ -23,10 +44,14 @@ export function useOnline() {
   const [game, setGame] = useState<ClientGame | null>(null)
   const [code, setCode] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [server, setServer] = useState(getServerUrl)
 
   useEffect(() => {
-    // Gleicher Origin — im Dev leitet der Vite-Proxy /socket.io an :3001 weiter.
-    const socket = io({ transports: ['websocket', 'polling'] })
+    // Ohne Adresse: gleicher Origin — im Dev leitet der Vite-Proxy /socket.io an :3001.
+    if (isNative && !server) return
+    const socket = server
+      ? io(server, { transports: ['websocket', 'polling'] })
+      : io({ transports: ['websocket', 'polling'] })
     socketRef.current = socket
 
     socket.on('connect', () => {
@@ -52,11 +77,15 @@ export function useOnline() {
       setCode(null)
     })
 
+    socket.on('connect_error', () =>
+      setError(server ? `Kein Server unter ${server}` : 'Kein Server erreichbar.'),
+    )
+
     return () => {
       socket.removeAllListeners()
       socket.disconnect()
     }
-  }, [])
+  }, [server])
 
   useEffect(() => {
     if (!error) return
@@ -96,6 +125,13 @@ export function useOnline() {
     game,
     code,
     error,
+    server,
+    isNative,
+    /** Serveradresse wechseln — baut die Verbindung neu auf. */
+    changeServer: (url: string) => {
+      setServerUrl(url)
+      setServer(getServerUrl())
+    },
     create: (name: string, ante: number) => enter('room:create', { name, ante }),
     join: (roomCode: string, name: string) =>
       enter('room:join', { code: roomCode.toUpperCase(), name }),

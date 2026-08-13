@@ -15,7 +15,15 @@ export function DigitalMode({ onExit }: { onExit: () => void }) {
   return (
     <>
       {!game || !code ? (
-        <Join connected={net.connected} onCreate={net.create} onJoin={net.join} onBack={onExit} />
+        <Join
+          connected={net.connected}
+          server={net.server}
+          isNative={net.isNative}
+          onChangeServer={net.changeServer}
+          onCreate={net.create}
+          onJoin={net.join}
+          onBack={onExit}
+        />
       ) : game.phase === 'lobby' ? (
         <Lobby game={game} code={code} onStart={net.start} onKick={net.kick} onLeave={leave} />
       ) : (

@@ -4,7 +4,10 @@
   "version": "0.1.0",
   "description": "Chratzen — Schweizer Kartenspiel: Companion (Pott-Manager) + Digital (Online Multiplayer)",
   "license": "GPL-3.0-or-later",
-  "repository": { "type": "git", "url": "git+https://github.com/RLT-Newside/Chratzen.git" },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RLT-Newside/Chratzen.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -17,6 +20,9 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
     "@fontsource/bebas-neue": "^5.2.7",
     "@fontsource/dm-sans": "^5.2.8",
     "@tailwindcss/vite": "^4.2.2",

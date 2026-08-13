@@ -1,0 +1,71 @@
+name: APK
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build APK
+        run: chmod +x android/gradlew && cd android && ./gradlew assembleRelease
+
+      # Ohne Keystore-Secrets kommt eine unsignierte APK raus — die lässt sich
+      # nicht installieren, taugt aber zum Prüfen, dass der Build durchläuft.
+      - name: Sign APK
+        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > /tmp/chratzen.keystore
+          "${ANDROID_HOME}/build-tools/$(ls ${ANDROID_HOME}/build-tools/ | tail -1)/apksigner" sign \
+            --ks /tmp/chratzen.keystore \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass "pass:$KEYSTORE_PASSWORD" \
+            --key-pass "pass:$KEYSTORE_PASSWORD" \
+            --out Chratzen.apk \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Collect artifact
+        run: |
+          test -f Chratzen.apk || cp android/app/build/outputs/apk/release/app-release-unsigned.apk Chratzen-unsigned.apk
+          ls -la *.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Chratzen-apk
+          path: '*.apk'
+          retention-days: 14
+
+      - name: Attach to release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" *.apk --generate-notes || gh release upload "${{ github.ref_name }}" *.apk --clobber

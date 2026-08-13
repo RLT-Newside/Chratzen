@@ -5,3 +5,11 @@ dist
 *.local
 .env
 .env.*
+
+# Android: Quelle bleibt im Repo, Build-Output nicht
+android/.gradle/
+android/build/
+android/app/build/
+android/app/src/main/assets/public/
+android/app/src/main/assets/capacitor.config.json
+android/capacitor-cordova-android-plugins/
