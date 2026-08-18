@@ -617,6 +617,52 @@ describe('Letzter', () => {
     expect(g.phase).toBe('exchange')
   })
 
+  it('lässt sich auch in der zweiten Chance noch ansagen', () => {
+    const g = freshDeal(['A', 'B', 'C', 'D'])
+    say(g, 'weiter') // p1 — vor dem Kratzer, kommt nochmals dran
+    say(g, 'kratzen') // p2
+    say(g, 'weiter') // p3
+    say(g, 'weiter') // p0
+
+    expect(g.secondChance).toEqual(['p1'])
+    // Gekratzt hat jemand, mitgegangen ist niemand — also steht Letzter offen.
+    expect(applyCall(g, 'p1', 'letzter')).toBeNull()
+
+    // Er war der letzte Nachzügler, danach geht niemand mehr mit: also Zwang.
+    expect(g.calls.p1).toBe('mitgehen')
+    expect(g.phase).toBe('exchange')
+  })
+
+  it('als Letzter in der zweiten Chance darf man wählen, wenn ein zweiter mitgeht', () => {
+    const g = freshDeal(['A', 'B', 'C', 'D', 'E'])
+    say(g, 'weiter') // p1 — Nachzügler
+    say(g, 'weiter') // p2 — Nachzügler
+    say(g, 'kratzen') // p3
+    say(g, 'weiter') // p4
+    say(g, 'weiter') // p0
+
+    expect(g.secondChance).toEqual(['p1', 'p2'])
+    expect(applyCall(g, 'p1', 'letzter')).toBeNull()
+    // p2 geht mit — damit ist p1 frei und wird gefragt.
+    expect(applyCall(g, 'p2', 'mitgehen')).toBeNull()
+    expect(g.awaitLetzter).toBe(true)
+    expect(g.players[g.turn].id).toBe('p1')
+    expect(applyCall(g, 'p1', 'weiter')).toBeNull()
+    expect(g.calls.p1).toBe('weiter')
+  })
+
+  it('in der zweiten Chance kein Letzter, wenn schon jemand mitgeht', () => {
+    const g = freshDeal(['A', 'B', 'C', 'D'])
+    say(g, 'weiter') // p1
+    say(g, 'kratzen') // p2
+    say(g, 'mitgehen') // p3
+    say(g, 'weiter') // p0
+
+    expect(g.secondChance).toEqual(['p1'])
+    expect(applyCall(g, 'p1', 'letzter')).toMatch(/schon jemand mit/)
+    expect(applyCall(g, 'p1', 'kratzen')).toMatch(/nur einer/)
+  })
+
   it('wird auch von einem Mitgeher aus der zweiten Chance freigespielt', () => {
     const g = freshDeal(['A', 'B', 'C', 'D'])
     say(g, 'weiter') // p1 — vor dem Kratzer, bekommt später nochmals die Wahl
@@ -663,8 +709,7 @@ describe('Zweite Chance nach dem Kratzer', () => {
     say(g, 'kratzen')
     say(g, 'weiter')
 
-    expect(applyCall(g, 'p1', 'kratzen')).toMatch(/nur noch mitgehen/)
-    expect(applyCall(g, 'p1', 'letzter')).toMatch(/nur noch mitgehen/)
+    expect(applyCall(g, 'p1', 'kratzen')).toMatch(/nur einer/)
     expect(g.calls.p1).toBe('weiter')
   })
 

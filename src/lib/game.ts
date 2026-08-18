@@ -451,6 +451,18 @@ function resolveLetzter(g: Game) {
   beginExchange(g)
 }
 
+/**
+ * "Letzter" heisst abwarten, ob noch jemand mitgeht. Das setzt voraus, dass es
+ * etwas zum Mitgehen gibt und noch niemand mitgegangen ist — sonst gäbe es
+ * nichts abzuwarten.
+ */
+function letzterRefusal(others: Call[]): string | null {
+  if (!others.includes('kratzen')) return 'Letzter geht erst, wenn jemand gekratzt hat.'
+  if (others.includes('mitgehen')) return 'Es geht schon jemand mit — jetzt entscheiden.'
+  if (others.includes('letzter')) return 'Es kann nur einer "Letzter" sagen.'
+  return null
+}
+
 export function applyCall(g: Game, playerId: string, call: Call): string | null {
   if (g.phase !== 'calls') return 'Gerade keine Ansagen möglich.'
   const i = indexOf(g, playerId)
@@ -467,9 +479,14 @@ export function applyCall(g: Game, playerId: string, call: Call): string | null 
     return null
   }
 
-  // Zweite Chance: gefragt wird der Reihe nach, kratzen geht jetzt nicht mehr.
+  // Zweite Chance: gefragt wird der Reihe nach. Kratzen ist vergeben, aber
+  // "Letzter" steht offen, solange niemand mitgegangen ist.
   if (g.secondChance.length > 0) {
-    if (call !== 'mitgehen' && call !== 'weiter') return 'Jetzt nur noch mitgehen oder passen.'
+    if (call === 'kratzen') return 'Es kratzt nur einer — du kannst noch mitgehen.'
+    if (call === 'letzter') {
+      const refusal = letzterRefusal(others)
+      if (refusal) return refusal
+    }
     g.calls[playerId] = call
     g.secondChance = g.secondChance.filter((id) => id !== playerId)
     if (g.secondChance.length > 0) g.turn = indexOf(g, g.secondChance[0])
@@ -484,11 +501,8 @@ export function applyCall(g: Game, playerId: string, call: Call): string | null 
     return 'Mitgehen geht nur, wenn schon jemand gekratzt hat.'
   }
   if (call === 'letzter') {
-    // "Letzter" heisst abwarten, ob noch jemand mitgeht. Das setzt voraus, dass
-    // es etwas zum Mitgehen gibt und noch niemand mitgegangen ist.
-    if (!others.includes('kratzen')) return 'Letzter geht erst, wenn jemand gekratzt hat.'
-    if (others.includes('mitgehen')) return 'Es geht schon jemand mit — jetzt entscheiden.'
-    if (others.includes('letzter')) return 'Es kann nur einer "Letzter" sagen.'
+    const refusal = letzterRefusal(others)
+    if (refusal) return refusal
   }
 
   g.calls[playerId] = call
