@@ -335,14 +335,22 @@ export function Table({
               {game.awaitLetzter ? (
                 <>
                   <p className="col-span-4 text-center text-xs text-white/45 mb-1">
-                    Du warst Letzter — jetzt entscheiden.
+                    {game.letzterForced
+                      ? 'Du warst Letzter und sonst geht niemand mit — du musst.'
+                      : 'Du warst Letzter — jetzt entscheiden.'}
                   </p>
-                  <Button variant="primary" className="col-span-2" onClick={() => onCall('mitgehen')}>
+                  <Button
+                    variant="primary"
+                    className={game.letzterForced ? 'col-span-4' : 'col-span-2'}
+                    onClick={() => onCall('mitgehen')}
+                  >
                     Mitgehen
                   </Button>
-                  <Button className="col-span-2" onClick={() => onCall('weiter')}>
-                    Passen
-                  </Button>
+                  {!game.letzterForced && (
+                    <Button className="col-span-2" onClick={() => onCall('weiter')}>
+                      Passen
+                    </Button>
+                  )}
                 </>
               ) : game.secondChance ? (
                 <>

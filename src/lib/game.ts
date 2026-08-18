@@ -78,6 +78,12 @@ export type Game = {
   /** Der Geber hat blind gekratzt. */
   blind: boolean
   awaitLetzter: boolean
+  /**
+   * Der Letzte wird immer gefragt — aber wenn niemand mitgegangen ist, bleibt
+   * ihm nur das Mitgehen. Dann steht das hier, damit ihm die UI kein Passen
+   * anbietet und die Engine es auch nicht annimmt.
+   */
+  letzterForced: boolean
   exchanged: Record<string, boolean>
   /** Spieler mit 5 Karten, die noch eine Schlafkarte abwerfen müssen. */
   sleepers: string[]
@@ -129,6 +135,7 @@ export function createGame(hostId: string, ante: number): Game {
     blindOffer: null,
     blind: false,
     awaitLetzter: false,
+    letzterForced: false,
     exchanged: {},
     sleepers: [],
     trick: [],
@@ -172,6 +179,7 @@ function revealTrump(g: Game, card: Card, freshDeal: boolean) {
   g.trumpInHand = false
   g.calls = Object.fromEntries(g.players.map((p) => [p.id, 'weiter' as Call]))
   g.awaitLetzter = false
+  g.letzterForced = false
   g.callOrder = []
   g.secondChance = []
   g.blindOffer = null
@@ -351,7 +359,8 @@ export function forceMove(g: Game, hostId: string): string | null {
     case 'blind':
       return declineBlind(g, actor.id)
     case 'calls':
-      return applyCall(g, actor.id, 'weiter')
+      // Ein Letzter mit Zwang kann nicht passen — sonst hinge die Runde.
+      return applyCall(g, actor.id, g.awaitLetzter && g.letzterForced ? 'mitgehen' : 'weiter')
     case 'exchange':
       return applyExchange(g, actor.id, [])
     case 'sleeper':
@@ -439,14 +448,13 @@ function resolveLetzter(g: Game) {
   const letzterIdx = list.indexOf('letzter')
 
   if (letzterIdx >= 0) {
-    if (letzterMustGo(list)) {
-      g.calls[g.players[letzterIdx].id] = 'mitgehen'
-      g.message = `${g.players[letzterIdx].name} war Letzter und muss mitgehen.`
-    } else {
-      g.awaitLetzter = true
-      g.turn = letzterIdx
-      return
-    }
+    // Der Letzte entscheidet als Letzter — auch wenn ihm nur das Mitgehen
+    // bleibt. Still umbuchen ginge zwar schneller, verpflichtet ihn aber
+    // wortlos auf Geld.
+    g.awaitLetzter = true
+    g.letzterForced = letzterMustGo(list)
+    g.turn = letzterIdx
+    return
   }
   beginExchange(g)
 }
@@ -473,8 +481,12 @@ export function applyCall(g: Game, playerId: string, call: Call): string | null 
 
   if (g.awaitLetzter) {
     if (call !== 'mitgehen' && call !== 'weiter') return 'Als Letzter: mitgehen oder passen.'
+    if (call === 'weiter' && g.letzterForced) {
+      return 'Sonst geht niemand mit — als Letzter musst du.'
+    }
     g.calls[playerId] = call
     g.awaitLetzter = false
+    g.letzterForced = false
     beginExchange(g)
     return null
   }
@@ -671,6 +683,8 @@ export type ClientGame = {
   trumpInHand: boolean
   turn: number
   awaitLetzter: boolean
+  /** Du bist der Letzte und musst mitgehen — sonst geht niemand mit. */
+  letzterForced: boolean
   /** Du hast vor dem Kratzer gepasst und wirst nochmals gefragt. */
   secondChance: boolean
   /** Du bist der Geber und entscheidest über den Blinden — Hand noch verdeckt. */
@@ -729,6 +743,7 @@ export function redact(g: Game, youId: string): ClientGame {
     trumpInHand: g.trumpInHand,
     turn: g.turn,
     awaitLetzter: g.awaitLetzter,
+    letzterForced: g.letzterForced,
     secondChance: g.secondChance.includes(youId),
     blindOffer: g.blindOffer === youId,
     blind: g.blind,

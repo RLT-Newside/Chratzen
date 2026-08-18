@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 107 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
+npm test         # 108 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -167,8 +167,9 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
   gepasst hat, hatte die Wahl bereits; für ihn ist es vorbei.
 - **Letzter**: ansagbar, solange schon jemand **gekratzt** hat und noch **niemand
   mitgegangen** ist — sonst gäbe es nichts abzuwarten. Das gilt auch noch in der
-  zweiten Chance. Er entscheidet zuletzt: geht bis dahin niemand mit, **muss** er
-  mitgehen; geht jemand mit, wählt er frei. Nur einer pro Runde.
+  zweiten Chance. **Gefragt wird er immer** — geht bis dahin niemand mit, steht ihm
+  nur das Mitgehen offen; geht jemand mit, wählt er frei. Stilles Umbuchen gibt es
+  nicht: verpflichtet wird niemand wortlos auf Geld. Nur einer pro Runde.
 - **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein.
 - **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen.
 - **Blinder**: Nur der Geber, und nur direkt nach dem Austeilen — er hat da erst den

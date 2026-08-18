@@ -304,6 +304,52 @@ describe('TableHost', () => {
       .toBe(false)
   })
 
+  it('lässt einen erzwungenen Zug den Letzten nicht in die Sackgasse schicken', () => {
+    // Der Letzte muss mitgehen; ein erzwungenes "weiter" würde abgelehnt und
+    // die Runde hinge. Der Host-Eingriff muss deshalb mitgehen wählen.
+    const host = makeHost()
+    const { code } = openTable(host)
+    join(host, 'c-beat', code, 'Beat')
+    join(host, 'c-cara', code, 'Cara')
+    host.receive('c-anna', { t: 'setPause', ms: 0 })
+
+    // Ohne Annotation dreht sich die Typinferenz im Kreis, weil die Schleife
+    // `state` liest und neu setzt.
+    type StateMsg = Extract<ServerMsg, { t: 'state' }> | undefined
+    let state: StateMsg = pick(host.receive('c-anna', { t: 'start' }), 'c-anna', 'state')
+    const conn = (id: string) => (id === 'id0' ? 'c-anna' : id === 'id3' ? 'c-beat' : 'c-cara')
+
+    // Blinden ablehnen, dann: einer kratzt, einer sagt Letzter, Rest passt.
+    if (state?.game.blindOffer) {
+      state = pick(host.receive('c-anna', { t: 'blind', take: false }), 'c-anna', 'state')
+    }
+    if (state?.game.phase !== 'calls') return
+
+    let letzterId: string | null = null
+    for (let i = 0; i < 3 && state?.game.phase === 'calls'; i++) {
+      const who: string = state.game.players[state.game.turn].id
+      const hasKratzer: boolean = state.game.players.some((p) => p.call === 'kratzen')
+      const call: 'kratzen' | 'letzter' | 'weiter' = !hasKratzer
+        ? 'kratzen'
+        : letzterId === null
+          ? 'letzter'
+          : 'weiter'
+      if (call === 'letzter') letzterId = who
+      state = pick(host.receive(conn(who), { t: 'call', call }), conn(who), 'state')
+    }
+
+    if (!state?.game.awaitLetzter || !letzterId) return
+    expect(state.game.letzterForced).toBe(true)
+
+    // Der Letzte reagiert nicht — der Host springt ein.
+    host.disconnect(conn(letzterId))
+    const out = host.receive('c-anna', { t: 'force' })
+    const after = pick(out, 'c-anna', 'state')
+    expect(pick(out, 'c-anna', 'error')).toBeUndefined()
+    expect(after?.game.awaitLetzter).toBe(false)
+    expect(after?.game.players.find((p) => p.id === letzterId)?.call).toBe('mitgehen')
+  })
+
   it('gibt die Host-Rolle nie an einen Bot weiter', () => {
     const host = makeHost()
     const { code } = openTable(host)

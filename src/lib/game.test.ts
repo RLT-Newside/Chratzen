@@ -596,8 +596,14 @@ describe('Letzter', () => {
     say(g, 'letzter')
     say(g, 'weiter') // p0
 
-    // Kein Mitgeher am Tisch: der Letzte wird gezwungen, ohne gefragt zu werden.
-    expect(g.awaitLetzter).toBe(false)
+    // Gefragt wird er trotzdem — aber passen kann er nicht.
+    expect(g.awaitLetzter).toBe(true)
+    expect(g.letzterForced).toBe(true)
+    expect(g.players[g.turn].id).toBe(letzter.id)
+    expect(applyCall(g, letzter.id, 'weiter')).toMatch(/musst du/)
+    expect(g.calls[letzter.id]).toBe('letzter')
+
+    expect(applyCall(g, letzter.id, 'mitgehen')).toBeNull()
     expect(g.calls[letzter.id]).toBe('mitgehen')
     expect(g.phase).toBe('exchange')
   })
@@ -611,6 +617,7 @@ describe('Letzter', () => {
     say(g, 'weiter') // p0
 
     expect(g.awaitLetzter).toBe(true)
+    expect(g.letzterForced).toBe(false)
     expect(g.players[g.turn].id).toBe(letzter.id)
     expect(applyCall(g, letzter.id, 'weiter')).toBeNull()
     expect(g.calls[letzter.id]).toBe('weiter')
@@ -628,7 +635,11 @@ describe('Letzter', () => {
     // Gekratzt hat jemand, mitgegangen ist niemand — also steht Letzter offen.
     expect(applyCall(g, 'p1', 'letzter')).toBeNull()
 
-    // Er war der letzte Nachzügler, danach geht niemand mehr mit: also Zwang.
+    // Er war der letzte Nachzügler, danach geht niemand mehr mit: also Zwang —
+    // gefragt wird er trotzdem.
+    expect(g.awaitLetzter).toBe(true)
+    expect(g.letzterForced).toBe(true)
+    expect(applyCall(g, 'p1', 'mitgehen')).toBeNull()
     expect(g.calls.p1).toBe('mitgehen')
     expect(g.phase).toBe('exchange')
   })

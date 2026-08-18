@@ -378,7 +378,9 @@ export class TableHost {
   private fallbackMove(g: Game, id: string, hand: Card[]) {
     const lead = g.trick[0]?.card.suit ?? null
     if (g.phase === 'blind') declineBlind(g, id)
-    else if (g.phase === 'calls') applyCall(g, id, 'weiter')
+    else if (g.phase === 'calls') {
+      applyCall(g, id, g.awaitLetzter && g.letzterForced ? 'mitgehen' : 'weiter')
+    }
     else if (g.phase === 'exchange') applyExchange(g, id, [])
     else if (g.phase === 'sleeper' && hand[0]) applySleeperDiscard(g, id, cardId(hand[0]))
     else if (g.phase === 'play') {
