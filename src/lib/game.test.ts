@@ -470,15 +470,30 @@ describe('Blinder', () => {
     expect(g.phase).toBe('exchange')
   })
 
-  it('behält fünf Karten über den Tausch und wirft dann eine ab', () => {
+  it('landet nach dem Tausch wieder bei vier — 3 abwerfen, 2 zurück', () => {
     const g = dealt(['A', 'B'])
     const dealer = g.players[g.dealerIndex]
     declareBlind(g, dealer.id)
     while (g.phase === 'calls') applyCall(g, g.players[g.turn].id, 'weiter')
 
     expect(g.phase).toBe('exchange')
-    // Der Blinde tauscht ganz normal — vier Karten, aber keinen Nachschlag.
-    expect(applyExchange(g, dealer.id, g.hands[dealer.id].slice(0, 4).map(cardId))).toBeNull()
+    expect(g.hands[dealer.id]).toHaveLength(5)
+    expect(applyExchange(g, dealer.id, g.hands[dealer.id].slice(0, 3).map(cardId))).toBeNull()
+    expect(g.hands[dealer.id]).toHaveLength(4)
+    expect(g.sleepers).not.toContain(dealer.id)
+
+    while (g.phase === 'exchange') applyExchange(g, g.players[g.turn].id, [])
+    expect(g.phase).toBe('play')
+    expectNoDuplicates(g)
+  })
+
+  it('behält die fünfte nur, wer gar nicht tauscht — dann geht sie als Schlafkarte weg', () => {
+    const g = dealt(['A', 'B'])
+    const dealer = g.players[g.dealerIndex]
+    declareBlind(g, dealer.id)
+    while (g.phase === 'calls') applyCall(g, g.players[g.turn].id, 'weiter')
+
+    expect(applyExchange(g, dealer.id, [])).toBeNull()
     expect(g.hands[dealer.id]).toHaveLength(5)
 
     while (g.phase === 'exchange') applyExchange(g, g.players[g.turn].id, [])

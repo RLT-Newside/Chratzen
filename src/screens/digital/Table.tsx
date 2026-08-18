@@ -5,7 +5,7 @@ import { Button, Card, SectionTitle, Segmented } from '../../components/ui'
 import { type CardId, RANK_NAME, cardId, sortHand } from '../../lib/cards'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
-import type { Call } from '../../lib/rules'
+import { type Call, drawCount } from '../../lib/rules'
 import { Kasse } from './Kasse'
 import { PausePicker } from './PausePicker'
 
@@ -308,8 +308,8 @@ export function Table({
                 Du hast ausgeteilt und nur den Trumpf gesehen. Beim Blinden kratzt du,
                 ohne deine Karten zu kennen — dafür bekommst du den{' '}
                 {RANK_NAME[game.trump?.rank ?? 6]} vom Tisch und vier frische dazu. Deine
-                ausgeteilten Karten gehen ungesehen weg, und eine der fünf wirfst du vor
-                dem Ausspielen wieder ab.
+                ausgeteilten Karten gehen ungesehen weg. Mit fünf auf der Hand frisst der
+                Tausch die überzählige: wirfst du drei ab, kommen zwei zurück.
               </p>
               <div className="flex gap-2">
                 <Button size="lg" className="flex-1" onClick={() => onBlind(false)}>
@@ -373,10 +373,10 @@ export function Table({
           (game.yourTurn ? (
             <Button variant="primary" size="lg" className="w-full" onClick={() => onExchange(selected)}>
               {selected.length === 0
-                ? 'Keine Karten tauschen'
-                : selected.length === 4
-                  ? 'Alle 4 tauschen (5 neue)'
-                  : `${selected.length} tauschen`}
+                ? hand.length > 4
+                  ? 'Nichts tauschen — dann eine abwerfen'
+                  : 'Keine Karten tauschen'
+                : `${selected.length} weg, ${drawCount(hand.length, selected.length)} neu`}
             </Button>
           ) : (
             <WaitLine name={active?.name} what="tauscht" />

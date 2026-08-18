@@ -20,6 +20,7 @@ import {
   type Settlement,
   TRICKS_PER_ROUND,
   bannerCalls,
+  drawCount,
   isPlaying,
   letzterMustGo,
   settleRound,
@@ -512,10 +513,9 @@ export function applyExchange(g: Game, playerId: string, discard: CardId[]): str
   g.hands[playerId] = hand.filter((c) => !ids.has(cardId(c)))
   for (const c of hand.filter((c) => ids.has(cardId(c)))) g.discards.push(c)
 
-  // Schlafkarte: wer seine ganze Hand tauscht, bekommt eine Karte mehr zurück.
-  // Der Blinde hat schon fünf und tauscht nie alles — er kriegt keinen Nachschlag.
-  const drawCount = discard.length === hand.length ? discard.length + 1 : discard.length
-  for (let k = 0; k < drawCount; k++) g.hands[playerId].push(draw(g))
+  for (let k = 0; k < drawCount(hand.length, discard.length); k++) {
+    g.hands[playerId].push(draw(g))
+  }
   // Wer mit mehr als vier Karten dasteht, wirft vor dem Ausspielen eine ab.
   if (g.hands[playerId].length > TRICKS_PER_ROUND) g.sleepers.push(playerId)
 

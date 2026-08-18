@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 99 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
+npm test         # 104 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -180,8 +180,16 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
   Hand zurück, bis er sich entschieden hat — nachschauen und dann ansagen geht nicht.
   Nach einem Trumpfwechsel entfällt das Angebot, da kennt er seine Karten längst.
 - Austeilen einzeln reihum, 4 Karten; die letzte Karte des Gebers wird als Trumpf aufgedeckt.
-- **Tausch** 0–4 Karten. Wer alle 4 tauscht, zieht 5 und wirft vor dem Ausspielen
-  eine **Schlafkarte** verdeckt ab.
+- **Tausch** 0–4 Karten; man landet wieder bei vier. Wer seine **ganze** Hand
+  tauscht, zieht eine mehr und wirft vor dem Ausspielen eine **Schlafkarte**
+  verdeckt ab.
+
+  | Hand | abgeworfen | zurück | danach |
+  |---|---|---|---|
+  | 4 | 2 | 2 | 4 |
+  | 4 | 4 (ganze Hand) | 5 | 5 → Schlafkarte → 4 |
+  | 5 (Blinder) | 3 | 2 | 4 |
+  | 5 (Blinder) | 0 | 0 | 5 → Schlafkarte → 4 |
 - 36 Karten, 4 Farben (Schellen, Schilten, Rosen, Eichel) à 9 Werte:
   **6, 7, 8, 9, Banner (10), Under, Ober, König, Ass** — in dieser Reihenfolge
   aufsteigend. Trumpf schlägt Farbe.

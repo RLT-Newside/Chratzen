@@ -4,6 +4,7 @@ import {
   type Call,
   bannerCalls,
   demoteOtherKratzer,
+  drawCount,
   letzterMustGo,
   penaltyFor,
   settleRound,
@@ -172,6 +173,37 @@ describe('validateRound', () => {
 
   it('eine leere Runde wurde schlicht nicht gespielt', () => {
     expect(validateRound([e('a', 'weiter', 0), e('b', 'weiter', 0)])).toMatch(/muss kratzen/)
+  })
+})
+
+describe('drawCount', () => {
+  it('lässt einen normalerweise bei vier Karten', () => {
+    expect(drawCount(4, 0)).toBe(0)
+    expect(drawCount(4, 1)).toBe(1)
+    expect(drawCount(4, 3)).toBe(3)
+  })
+
+  it('gibt eine Karte mehr, wer seine ganze Hand tauscht', () => {
+    expect(drawCount(4, 4)).toBe(5)
+  })
+
+  it('beim Blinden frisst der Tausch die fünfte Karte', () => {
+    expect(drawCount(5, 1)).toBe(0)
+    expect(drawCount(5, 2)).toBe(1)
+    expect(drawCount(5, 3)).toBe(2)
+    expect(drawCount(5, 4)).toBe(3)
+    // Wer gar nicht tauscht, behält fünf und wirft eine Schlafkarte ab.
+    expect(drawCount(5, 0)).toBe(0)
+  })
+
+  it('führt immer auf vier Karten — ausser man tauscht die ganze Hand', () => {
+    for (const size of [4, 5]) {
+      for (let d = 0; d <= 4; d++) {
+        if (d > size) continue
+        const rest = size - d + drawCount(size, d)
+        expect(rest === 4 || rest === 5).toBe(true)
+      }
+    }
   })
 })
 

@@ -110,6 +110,21 @@ export function settleRound(potBefore: number, entries: Entry[]): Settlement {
 }
 
 /**
+ * Wie viele Karten man nach dem Abwerfen zurückbekommt.
+ *
+ * Normalfall: so viele, wie man abgeworfen hat — man bleibt bei vier. Wer seine
+ * **ganze** Hand tauscht, bekommt eine mehr und wirft vor dem Ausspielen eine
+ * Schlafkarte ab. Der Blinde hält fünf Karten; bei ihm frisst der Tausch die
+ * überzählige, er landet also wieder bei vier (3 abwerfen → 2 zurück). Tauscht
+ * er gar nicht, bleibt die fünfte und geht als Schlafkarte weg.
+ */
+export function drawCount(handSize: number, discarded: number): number {
+  if (discarded > 0 && discarded === handSize) return discarded + 1
+  const excess = Math.max(0, handSize - TRICKS_PER_ROUND)
+  return Math.max(0, discarded - excess)
+}
+
+/**
  * Eine gespielte Runde hat immer **genau einen** Kratzer: ohne Kratzer geht
  * auch niemand mit, dann wird nicht gespielt sondern neu aufgedeckt.
  */
