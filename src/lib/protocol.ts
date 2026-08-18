@@ -24,6 +24,7 @@ export type ClientMsg =
   | { t: 'force' }
   | { t: 'addBot' }
   | { t: 'setPause'; ms: number }
+  | { t: 'setBalances'; show: boolean }
 
 export type ServerMsg =
   | { t: 'joined'; code: string; token: string }

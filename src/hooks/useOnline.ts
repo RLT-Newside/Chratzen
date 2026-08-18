@@ -170,6 +170,7 @@ export function useOnline() {
     kick: (playerId: string) => send({ t: 'kick', playerId }),
     addBot: () => send({ t: 'addBot' }),
     setPause: (ms: number) => send({ t: 'setPause', ms }),
+    setBalances: (show: boolean) => send({ t: 'setBalances', show }),
     force: () => send({ t: 'force' }),
   }
 }

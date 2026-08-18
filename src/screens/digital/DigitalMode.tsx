@@ -34,6 +34,7 @@ export function DigitalMode({ onExit }: { onExit: () => void }) {
           onKick={net.kick}
           onAddBot={net.addBot}
           onSetPause={net.setPause}
+          onSetBalances={net.setBalances}
           onLeave={leave}
         />
       ) : (
@@ -48,6 +49,7 @@ export function DigitalMode({ onExit }: { onExit: () => void }) {
           onKick={net.kick}
           onForce={net.force}
           onSetPause={net.setPause}
+          onSetBalances={net.setBalances}
           onLeave={leave}
         />
       )}

@@ -269,6 +269,41 @@ describe('TableHost', () => {
       .toBe(5000)
   })
 
+  it('liefert fremde Kontostände nur, wenn der Host sie freigibt', () => {
+    const host = makeHost()
+    const { code } = openTable(host)
+    join(host, 'c-beat', code, 'Beat')
+    host.receive('c-anna', { t: 'start' })
+
+    // Standard: alle sehen alles.
+    let forBeat = pick(host.tick(), 'c-beat', 'state') ?? pick(host.receive('c-beat', { t: 'force' }), 'c-beat', 'state')
+    expect(forBeat?.game.showBalances).toBe(true)
+    expect(forBeat?.game.players.map((p) => p.balance)).toEqual([-100, -100])
+
+    // Verdeckt: fremde Stände verlassen den Server gar nicht erst.
+    forBeat = pick(host.receive('c-anna', { t: 'setBalances', show: false }), 'c-beat', 'state')
+    expect(forBeat?.game.showBalances).toBe(false)
+    const me = forBeat?.game.players.find((p) => p.id === forBeat?.game.youId)
+    const other = forBeat?.game.players.find((p) => p.id !== forBeat?.game.youId)
+    expect(me?.balance).toBe(-100)
+    expect(other?.balance).toBe(0)
+
+    // Der Host sieht seinen eigenen Stand weiterhin.
+    const forAnna = pick(host.receive('c-anna', { t: 'setBalances', show: false }), 'c-anna', 'state')
+    expect(forAnna?.game.players.find((p) => p.id === forAnna?.game.youId)?.balance).toBe(-100)
+  })
+
+  it('stellt die Kontostände nur auf Ansage des Hosts um', () => {
+    const host = makeHost()
+    const { code } = openTable(host)
+    join(host, 'c-beat', code, 'Beat')
+
+    expect(pick(host.receive('c-beat', { t: 'setBalances', show: false }), 'c-beat', 'error')?.message)
+      .toMatch(/Nur der Host/)
+    expect(pick(host.receive('c-anna', { t: 'setBalances', show: false }), 'c-anna', 'state')?.game.showBalances)
+      .toBe(false)
+  })
+
   it('gibt die Host-Rolle nie an einen Bot weiter', () => {
     const host = makeHost()
     const { code } = openTable(host)

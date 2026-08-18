@@ -1,6 +1,6 @@
 import { Bot, Check, Copy, LogOut, UserMinus, WifiOff } from 'lucide-react'
 import { useState } from 'react'
-import { Button, Card, SectionTitle } from '../../components/ui'
+import { Button, Card, SectionTitle, Segmented } from '../../components/ui'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
 import type { HostInfo } from '../../lib/transport'
@@ -14,6 +14,7 @@ export function Lobby({
   onKick,
   onAddBot,
   onSetPause,
+  onSetBalances,
   onLeave,
 }: {
   game: ClientGame
@@ -23,6 +24,7 @@ export function Lobby({
   onKick: (playerId: string) => void
   onAddBot: () => void
   onSetPause: (ms: number) => void
+  onSetBalances: (show: boolean) => void
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState(false)
@@ -169,6 +171,22 @@ export function Lobby({
       {isHost ? (
         <>
           <PausePicker value={game.trickPauseMs} onChange={onSetPause} />
+
+          <div className="mt-6">
+            <SectionTitle>Kontostände</SectionTitle>
+            <Segmented
+              value={game.showBalances ? 'alle' : 'eigener'}
+              options={[
+                { value: 'eigener', label: 'Nur eigener' },
+                { value: 'alle', label: 'Alle sehen alles' },
+              ]}
+              onChange={(v) => onSetBalances(v === 'alle')}
+            />
+            <p className="text-xs text-white/35 mt-2 leading-relaxed">
+              Den eigenen Stand sieht jeder immer. Freigegeben zeigt die Kasse zusätzlich
+              alle Stände und wer wem was schuldet.
+            </p>
+          </div>
 
           <Button
             className="w-full mt-6 flex items-center justify-center gap-2"

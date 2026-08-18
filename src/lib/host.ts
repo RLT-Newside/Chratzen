@@ -23,6 +23,7 @@ import {
   nextRound,
   playCard,
   redact,
+  setShowBalances,
   setTrickPause,
   startRound,
 } from './game'
@@ -284,6 +285,9 @@ export class TableHost {
         break
       case 'setPause':
         err = setTrickPause(g, me, msg.ms)
+        break
+      case 'setBalances':
+        err = setShowBalances(g, me, msg.show)
         break
       case 'addBot':
         if (g.hostId !== me) err = 'Nur der Host kann Bots setzen.'

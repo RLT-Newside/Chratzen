@@ -88,6 +88,11 @@ export type Game = {
   trickPending: string | null
   /** Wie lange ein fertiger Stich liegen bleibt. 0 = sofort abräumen. */
   trickPauseMs: number
+  /**
+   * Sehen alle die Kontostände der anderen? Der Host entscheidet. Aus heisst
+   * wirklich aus — fremde Stände verlassen den Server gar nicht erst.
+   */
+  showBalances: boolean
   leader: number
   tricksWon: Record<string, number>
   trickHistory: { winner: string; cards: { playerId: string; card: Card }[] }[]
@@ -128,6 +133,7 @@ export function createGame(hostId: string, ante: number): Game {
     trick: [],
     trickPending: null,
     trickPauseMs: 1000,
+    showBalances: true,
     leader: 0,
     tricksWon: {},
     trickHistory: [],
@@ -602,6 +608,13 @@ export function finishTrick(g: Game): void {
   )
 }
 
+/** Kontostände der anderen zeigen oder nicht — Sache des Hosts. */
+export function setShowBalances(g: Game, hostId: string, show: boolean): string | null {
+  if (g.hostId !== hostId) return 'Nur der Host stellt das ein.'
+  g.showBalances = !!show
+  return null
+}
+
 /** Wie lange ein fertiger Stich liegen bleibt — Sache des Hosts, gilt am Tisch. */
 export function setTrickPause(g: Game, hostId: string, ms: number): string | null {
   if (g.hostId !== hostId) return 'Nur der Host stellt das Tempo ein.'
@@ -657,6 +670,7 @@ export type ClientGame = {
   /** Der Stich ist entschieden und liegt noch — hier steht, wer ihn holt. */
   trickPending: string | null
   trickPauseMs: number
+  showBalances: boolean
   trickHistory: { winner: string; cards: { playerId: string; card: Card }[] }[]
   settlement: Settlement | null
   message: string | null
@@ -682,6 +696,8 @@ export function redact(g: Game, youId: string): ClientGame {
     ante: g.ante,
     players: g.players.map((p) => ({
       ...p,
+      // Ausgeblendet heisst nicht "nicht angezeigt", sondern gar nicht geliefert.
+      balance: g.showBalances || p.id === youId ? p.balance : 0,
       cards: (g.hands[p.id] ?? []).length,
       call: g.calls[p.id] ?? 'weiter',
       tricks: g.tricksWon[p.id] ?? 0,
@@ -711,6 +727,7 @@ export function redact(g: Game, youId: string): ClientGame {
     trick: g.trick,
     trickPending: g.trickPending,
     trickPauseMs: g.trickPauseMs,
+    showBalances: g.showBalances,
     trickHistory: g.trickHistory,
     settlement: g.settlement,
     message: g.message,

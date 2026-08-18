@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 97 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
+npm test         # 99 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -86,6 +86,7 @@ Draht sprechen kann.
 | `{t:'force'}` | hängenden Zug übernehmen (nur Host) |
 | `{t:'addBot'}` | Bot dazusetzen (nur Host, nur in der Lobby) |
 | `{t:'setPause', ms}` | Stichpause 0–5000 ms (nur Host) |
+| `{t:'setBalances', show}` | fremde Kontostände zeigen (nur Host) |
 
 | Tischwirt → Gast | |
 |---|---|
@@ -223,6 +224,19 @@ sie in die eigene Hand schauen — genau das verbietet die Regel.
 Bots werden nie Host — geht der Host offline, erbt ein Mensch. Lehnt die Engine
 einen Bot-Zug einmal ab, springt eine garantiert legale Notvariante ein, damit
 die Runde nicht hängen bleibt.
+
+## Kasse (digitaler Modus)
+
+Der **eigene Stand** steht immer unter dem Pott und öffnet angetippt die Kasse.
+Dort: der eigene Stand gross, die Rangliste aller Spieler und der **Ausgleich** —
+wer zahlt wem wie viel, mit möglichst wenigen Zahlungen. Ein offener Pott wird
+für die Rechnung gleichmässig zurückgerechnet, wie im Companion.
+
+Ob die Stände der anderen sichtbar sind, entscheidet der Host (Lobby oder
+Verwalten-Bereich, Standard **alle sehen alles**). Verdeckt heisst wirklich
+verdeckt: `redact` liefert fremde Stände dann als 0 aus, sie verlassen den
+Server gar nicht erst. Der eigene Stand bleibt in jedem Fall sichtbar; ohne
+Freigabe entfällt der Ausgleich, weil er alle Zahlen braucht.
 
 ## Host-Rechte (digitaler Modus)
 

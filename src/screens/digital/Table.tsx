@@ -1,11 +1,12 @@
-import { LogOut, Shield, UserMinus, UserPlus } from 'lucide-react'
+import { LogOut, Shield, UserMinus, UserPlus, Wallet } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { CardBack, PlayingCard } from '../../components/PlayingCard'
-import { Button, Card } from '../../components/ui'
+import { Button, Card, SectionTitle, Segmented } from '../../components/ui'
 import { type CardId, RANK_NAME, cardId, sortHand } from '../../lib/cards'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
 import type { Call } from '../../lib/rules'
+import { Kasse } from './Kasse'
 import { PausePicker } from './PausePicker'
 
 const CALL_BADGE: Record<Call, { label: string; cls: string } | null> = {
@@ -26,6 +27,7 @@ export function Table({
   onKick,
   onForce,
   onSetPause,
+  onSetBalances,
   onLeave,
 }: {
   game: ClientGame
@@ -38,10 +40,12 @@ export function Table({
   onKick: (playerId: string) => void
   onForce: () => void
   onSetPause: (ms: number) => void
+  onSetBalances: (show: boolean) => void
   onLeave: () => void
 }) {
   const [selected, setSelected] = useState<CardId[]>([])
   const [manage, setManage] = useState(false)
+  const [kasse, setKasse] = useState(false)
 
   // Auswahl gehört immer zur aktuellen Phase — beim Wechsel wegwerfen.
   useEffect(() => setSelected([]), [game.phase])
@@ -81,11 +85,32 @@ export function Table({
     <div className="px-4 pt-4 pb-6 animate-fade-in min-h-screen flex flex-col">
       {/* Pott, Trumpf, Runde */}
       <div className="flex items-center gap-3">
-        <div className="flex-1">
+        <div className="flex-1 min-w-0">
           <p className="label-caption">Pott · Runde {game.round}</p>
           <p className="font-heading text-5xl text-brand leading-none tabular pot-glow">
             {formatChf(game.pot)}
           </p>
+          {/* Der eigene Stand ist immer sichtbar — er ist der Grund, warum man spielt. */}
+          <button
+            type="button"
+            onClick={() => setKasse(true)}
+            className="press-scale mt-1 flex items-center gap-1.5 text-xs"
+          >
+            <Wallet className="w-3.5 h-3.5 text-white/30" />
+            <span className="text-white/40">Dein Stand</span>
+            <span
+              className={`tabular font-medium ${
+                (you?.balance ?? 0) > 0
+                  ? 'text-emerald-400'
+                  : (you?.balance ?? 0) < 0
+                    ? 'text-red-400'
+                    : 'text-white/40'
+              }`}
+            >
+              {(you?.balance ?? 0) > 0 ? '+' : ''}
+              {formatChf(you?.balance ?? 0)}
+            </span>
+          </button>
         </div>
         {game.trump && (
           <div className="text-center">
@@ -177,8 +202,19 @@ export function Table({
       </div>
 
       {manage && (
-        <div className="mt-3 glass rounded-xl p-3">
+        <div className="mt-3 glass rounded-xl p-3 space-y-4">
           <PausePicker value={game.trickPauseMs} onChange={onSetPause} compact />
+          <div>
+            <SectionTitle>Kontostände</SectionTitle>
+            <Segmented
+              value={game.showBalances ? 'alle' : 'eigener'}
+              options={[
+                { value: 'eigener', label: 'Nur eigener' },
+                { value: 'alle', label: 'Alle sehen alles' },
+              ]}
+              onChange={(v) => onSetBalances(v === 'alle')}
+            />
+          </div>
         </div>
       )}
 
@@ -375,6 +411,7 @@ export function Table({
           </p>
         )}
       </div>
+      {kasse && <Kasse game={game} onClose={() => setKasse(false)} />}
     </div>
   )
 }
