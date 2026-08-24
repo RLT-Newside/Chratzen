@@ -185,7 +185,9 @@ function revealTrump(g: Game, card: Card, freshDeal: boolean) {
   g.blindOffer = null
   g.turn = left(g, g.dealerIndex)
   g.callsLeft = g.players.length
-  g.banner = card.rank === BANNER
+  // Nur beim Grundpott (kein Bete draufgelegt) zwingt eine Zehn zur Bannerrunde —
+  // ist schon mehr im Pott, wird ganz normal angesagt.
+  g.banner = card.rank === BANNER && g.pot === g.ante * g.players.length
 
   if (g.banner) {
     const forced = bannerCalls(g.players.length, g.dealerIndex)

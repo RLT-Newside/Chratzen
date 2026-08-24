@@ -115,7 +115,7 @@ export function Table({
         {game.trump && (
           <div className="text-center">
             <p className="label-caption mb-1">Trumpf</p>
-            <PlayingCard card={game.trump} size="sm" />
+            <PlayingCard card={game.trump} size="md" />
             {/* Normalerweise liegt die Trumpfkarte auf dem Tisch. Nur der
                 Blinde nimmt sie in die Hand — das gehört angeschrieben. */}
             {game.trumpInHand && (

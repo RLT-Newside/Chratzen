@@ -171,7 +171,8 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
   nur das Mitgehen offen; geht jemand mit, wählt er frei. Stilles Umbuchen gibt es
   nicht: verpflichtet wird niemand wortlos auf Geld. Nur einer pro Runde.
 - **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein.
-- **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen.
+- **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen. Gilt nur beim
+  Grundpott (Pott = Grundeinsatz × Spielerzahl); liegt schon Bete drauf, wird ganz normal angesagt.
 - **Blinder**: Nur der Geber, und nur direkt nach dem Austeilen — er hat da erst den
   Trumpf gesehen. Er kratzt, ohne seine Karten zu kennen; dafür behält er die
   Trumpfkarte und bekommt vier frische dazu. Vor dem Ausspielen wirft er eine der
@@ -321,3 +322,7 @@ als Repository-Secrets.
 ## Lizenz
 
 GPL-3.0-or-later — siehe [LICENSE](LICENSE).
+
+Die Kartengrafiken in `public/cards/` stammen aus
+[webplatformz/challenge](https://github.com/webplatformz/challenge) (`client/images/cards/german`) —
+MIT License, siehe [public/cards/LICENSE.md](public/cards/LICENSE.md).

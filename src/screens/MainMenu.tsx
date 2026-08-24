@@ -1,7 +1,7 @@
-import { ChevronRight, Coins, Wifi } from 'lucide-react'
+import { ChevronRight, Coins, LayoutGrid, Wifi } from 'lucide-react'
 import { SUITS } from '../components/suits'
 
-export type Mode = 'menu' | 'companion' | 'digital'
+export type Mode = 'menu' | 'companion' | 'digital' | 'cards'
 
 function ModeCard({
   title,
@@ -100,7 +100,17 @@ export function MainMenu({ onSelect }: { onSelect: (m: Mode) => void }) {
         />
       </div>
 
-      <p className="text-center text-xs text-white/25 mt-10 leading-relaxed">
+      <button
+        type="button"
+        onClick={() => onSelect('cards')}
+        className="press-scale flex items-center justify-center gap-2 w-full mt-6 py-3 rounded-xl
+          text-sm text-white/50 hover:text-white/80 transition-colors"
+      >
+        <LayoutGrid className="w-4 h-4" />
+        Kartenübersicht ansehen
+      </button>
+
+      <p className="text-center text-xs text-white/25 mt-4 leading-relaxed">
         Grundeinsatz frei wählbar · Kratzen = 2 Stiche · Mitgehen = 1 Stich
       </p>
     </div>
