@@ -40,3 +40,122 @@ jobs:
             sleep 1
           done
           npm run smoke
+
+  # Freigabe-Schleuse: package.json ist die Versionsquelle. Ein Release entsteht
+  # genau dann, wenn ein "chore(release)"-Commit die Version hochzieht und es zu
+  # dieser Version noch kein Release gibt. Normale Pushes auf main laufen hier
+  # ins Leere, ohne den Android-Build anzuwerfen.
+  gate:
+    if: github.event_name == 'push'
+    needs: check
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      tag: ${{ steps.v.outputs.tag }}
+      release: ${{ steps.v.outputs.release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Version bestimmen
+        id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VERSION=$(jq -r .version package.json)
+          TAG="v$VERSION"
+
+          # versionName im Gradle-Skript muss mitgezogen worden sein, sonst
+          # traegt die APK eine andere Version als das Release.
+          GRADLE=$(sed -n 's/.*versionName "\(.*\)".*/\1/p' android/app/build.gradle)
+          if [ "$GRADLE" != "$VERSION" ]; then
+            echo "::error::package.json sagt $VERSION, build.gradle sagt $GRADLE"
+            exit 1
+          fi
+
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG ist schon veroeffentlicht — nichts zu tun."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "$TAG fehlt noch — Release wird gebaut."
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  release:
+    needs: [check, gate]
+    if: needs.gate.outputs.release == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ needs.gate.outputs.tag }}
+      KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+      KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+      KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Anders als apk.yml darf hier keine unsignierte APK durchrutschen: was am
+      # Release haengt, soll installierbar sein.
+      - name: Keystore-Secrets pruefen
+        run: |
+          for s in KEYSTORE_BASE64 KEY_ALIAS KEYSTORE_PASSWORD; do
+            if [ -z "${!s}" ]; then
+              echo "::error::Secret $s fehlt — ohne Signatur kein Release."
+              exit 1
+            fi
+          done
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build APK
+        run: chmod +x android/gradlew && cd android && ./gradlew assembleRelease
+
+      - name: Sign APK
+        run: |
+          set -euo pipefail
+          echo "$KEYSTORE_BASE64" | base64 -d > /tmp/chratzen.keystore
+          "${ANDROID_HOME}/build-tools/$(ls ${ANDROID_HOME}/build-tools/ | tail -1)/apksigner" sign \
+            --ks /tmp/chratzen.keystore \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass "pass:$KEYSTORE_PASSWORD" \
+            --key-pass "pass:$KEYSTORE_PASSWORD" \
+            --out "Chratzen-${TAG}.apk" \
+            android/app/build/outputs/apk/release/app-release-unsigned.apk
+
+      - name: Tag setzen und Release anlegen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          git tag "$TAG"
+          git push origin "$TAG"
+          gh release create "$TAG" \
+            --title "Chratzen $TAG" \
+            --generate-notes \
+            "Chratzen-${TAG}.apk"
