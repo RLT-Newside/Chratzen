@@ -1,7 +1,7 @@
 import { ChevronRight, Coins, GraduationCap, LayoutGrid, Wifi } from 'lucide-react'
 import { SUITS } from '../components/suits'
 
-export type Mode = 'menu' | 'companion' | 'digital' | 'cards' | 'tutorial'
+export type Mode = 'menu' | 'companion' | 'digital' | 'cards' | 'tutorial' | 'practice'
 
 function ModeCard({
   title,
@@ -86,7 +86,7 @@ export function MainMenu({ onSelect }: { onSelect: (m: Mode) => void }) {
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-white/90">Noch nie Chratzen gespielt?</p>
           <p className="text-xs text-white/45 leading-snug mt-0.5">
-            Die Regeln in neun Kapiteln — Ansagen, Stechen, Bete.
+            Neun Kapitel, danach eine Übungsrunde gegen Bots.
           </p>
         </div>
         <ChevronRight className="w-5 h-5 text-white/25" />
@@ -119,15 +119,26 @@ export function MainMenu({ onSelect }: { onSelect: (m: Mode) => void }) {
         />
       </div>
 
-      <button
-        type="button"
-        onClick={() => onSelect('cards')}
-        className="press-scale flex items-center justify-center gap-2 w-full mt-6 py-3 rounded-xl
-          text-sm text-white/50 hover:text-white/80 transition-colors"
-      >
-        <LayoutGrid className="w-4 h-4" />
-        Kartenübersicht ansehen
-      </button>
+      <div className="flex gap-2 mt-6">
+        <button
+          type="button"
+          onClick={() => onSelect('practice')}
+          className="press-scale flex-1 flex items-center justify-center gap-2 py-3 rounded-xl
+            text-sm text-white/50 hover:text-white/80 transition-colors"
+        >
+          <GraduationCap className="w-4 h-4" />
+          Übungsrunde
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect('cards')}
+          className="press-scale flex-1 flex items-center justify-center gap-2 py-3 rounded-xl
+            text-sm text-white/50 hover:text-white/80 transition-colors"
+        >
+          <LayoutGrid className="w-4 h-4" />
+          Kartenübersicht
+        </button>
+      </div>
 
       <p className="text-center text-xs text-white/25 mt-4 leading-relaxed">
         Grundeinsatz frei wählbar · Kratzen = 2 Stiche · Mitgehen = 1 Stich

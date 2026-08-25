@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Coins, List, Wifi } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Coins, GraduationCap, List, Wifi } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Button } from '../components/ui'
 import { RULE_SECTIONS } from '../content/rules'
@@ -13,7 +13,7 @@ export function Tutorial({
   onPlay,
 }: {
   onExit: () => void
-  onPlay: (mode: 'companion' | 'digital') => void
+  onPlay: (mode: 'companion' | 'digital' | 'practice') => void
 }) {
   const [step, setStep] = useState(0)
   const [showToc, setShowToc] = useState(false)
@@ -109,10 +109,18 @@ export function Tutorial({
               variant="primary"
               size="lg"
               className="w-full flex items-center justify-center gap-2"
+              onClick={() => onPlay('practice')}
+            >
+              <GraduationCap className="w-4 h-4" />
+              Übungsrunde mit Coach
+            </Button>
+            <Button
+              size="lg"
+              className="w-full flex items-center justify-center gap-2"
               onClick={() => onPlay('digital')}
             >
               <Wifi className="w-4 h-4" />
-              Digital spielen — mit Bots üben
+              Digital spielen
             </Button>
             <Button
               size="lg"

@@ -140,3 +140,31 @@ export function createHostTransport(
     },
   }
 }
+
+/**
+ * Übungstisch: Der Tischwirt läuft in dieser WebView, es gibt aber keine Gäste
+ * und kein Netz — die Mitspieler sind Bots. Dieselbe Engine wie am echten Tisch,
+ * damit die Übungsrunde nichts erlaubt, was das Spiel später verbietet.
+ */
+export function createLocalTransport(h: Handlers): Transport {
+  const table = new TableHost({ fixedCode: 'UEBG' })
+
+  const dispatch = (out: Outgoing[]) => {
+    // Alles, was nicht an uns geht, hat keinen Empfänger — Bots sitzen im Host.
+    for (const { to, msg } of out) if (to === SELF) h.onMessage(msg)
+  }
+
+  // Erst nach der Rückgabe öffnen: der Aufrufer hält den Transport sonst noch
+  // nicht und könnte die erste Nachricht nicht abschicken.
+  const opened = setTimeout(() => h.onOpen(), 0)
+  const timer = setInterval(() => dispatch(table.tick()), BOT_TICK_MS)
+
+  return {
+    send: (msg) => dispatch(table.receive(SELF, msg)),
+    close: () => {
+      clearTimeout(opened)
+      clearInterval(timer)
+      h.onClose()
+    },
+  }
+}

@@ -7,6 +7,7 @@ const PATH_TO_MODE: Record<string, Mode> = {
   '/digital': 'digital',
   '/cards': 'cards',
   '/lernen': 'tutorial',
+  '/uebung': 'practice',
 }
 
 const MODE_TO_PATH: Record<Mode, string> = {
@@ -15,6 +16,7 @@ const MODE_TO_PATH: Record<Mode, string> = {
   digital: '/digital',
   cards: '/cards',
   tutorial: '/lernen',
+  practice: '/uebung',
 }
 
 const modeFromLocation = () => PATH_TO_MODE[window.location.pathname] ?? 'menu'

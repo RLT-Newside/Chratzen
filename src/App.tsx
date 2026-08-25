@@ -1,5 +1,6 @@
 import { CardOverview } from './screens/CardOverview'
 import { MainMenu } from './screens/MainMenu'
+import { Practice } from './screens/Practice'
 import { Tutorial } from './screens/Tutorial'
 import { CompanionMode } from './screens/companion/CompanionMode'
 import { DigitalMode } from './screens/digital/DigitalMode'
@@ -18,6 +19,7 @@ export default function App() {
       {mode === 'digital' && <DigitalMode onExit={back} onLearn={() => navigate('tutorial')} />}
       {mode === 'cards' && <CardOverview onExit={back} />}
       {mode === 'tutorial' && <Tutorial onExit={back} onPlay={navigate} />}
+      {mode === 'practice' && <Practice onExit={back} />}
     </div>
   )
 }
