@@ -38,7 +38,7 @@ jobs:
       # Ohne Keystore-Secrets kommt eine unsignierte APK raus — die lässt sich
       # nicht installieren, taugt aber zum Prüfen, dass der Build durchläuft.
       - name: Sign APK
-        if: ${{ env.KEYSTORE_BASE64 != '' }}
+        if: ${{ secrets.KEYSTORE_BASE64 != '' }}
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
