@@ -1,5 +1,6 @@
-import { ArrowLeft, Wifi } from 'lucide-react'
+import { ArrowLeft, HelpCircle, Wifi } from 'lucide-react'
 import { useState } from 'react'
+import { HelpSheet } from '../../components/HelpSheet'
 import { Button, SectionTitle, Segmented } from '../../components/ui'
 import { ANTE_OPTIONS, formatChf } from '../../lib/money'
 
@@ -12,6 +13,7 @@ export function Join({
   onHost,
   onJoin,
   onBack,
+  onLearn,
 }: {
   connected: boolean
   server: string
@@ -21,12 +23,14 @@ export function Join({
   onHost: (name: string, ante: number) => void
   onJoin: (code: string, name: string) => void
   onBack: () => void
+  onLearn: () => void
 }) {
   const [name, setName] = useState(() => localStorage.getItem('chratzen.name') ?? '')
   const [ante, setAnte] = useState<number>(ANTE_OPTIONS[1])
   const [code, setCode] = useState('')
   const [serverDraft, setServerDraft] = useState(server)
   const [showServer, setShowServer] = useState(isNative && !server)
+  const [help, setHelp] = useState(false)
 
   const remember = (n: string) => {
     setName(n)
@@ -42,8 +46,17 @@ export function Join({
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h1 className="font-heading text-4xl tracking-wide leading-none">DIGITAL</h1>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto"
+          onClick={() => setHelp(true)}
+          aria-label="Regeln und Hilfe"
+        >
+          <HelpCircle className="w-5 h-5" />
+        </Button>
         <span
-          className={`ml-auto text-[11px] px-2 py-1 rounded-full ${
+          className={`text-[11px] px-2 py-1 rounded-full ${
             connected ? 'bg-emerald-400/10 text-emerald-300' : 'bg-white/5 text-white/40'
           }`}
         >
@@ -181,6 +194,15 @@ export function Join({
           Beitreten
         </Button>
       </div>
+
+      {help && (
+        <HelpSheet
+          initial="ziel"
+          hint="Einer eröffnet den Tisch und gibt den Raumcode weiter — die anderen tippen ihn hier ein."
+          onOpenTutorial={onLearn}
+          onClose={() => setHelp(false)}
+        />
+      )}
     </div>
   )
 }

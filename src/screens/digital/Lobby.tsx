@@ -1,5 +1,7 @@
-import { Bot, Check, Copy, LogOut, UserMinus, WifiOff } from 'lucide-react'
+import { Bot, Check, Copy, HelpCircle, LogOut, UserMinus, WifiOff } from 'lucide-react'
 import { useState } from 'react'
+import { HelpSheet } from '../../components/HelpSheet'
+import { PHASE_HELP } from '../../content/rules'
 import { Button, Card, SectionTitle, Segmented } from '../../components/ui'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
@@ -28,6 +30,7 @@ export function Lobby({
   onLeave: () => void
 }) {
   const [copied, setCopied] = useState(false)
+  const [help, setHelp] = useState(false)
   const [pickedIp, setPickedIp] = useState<string | null>(null)
   const isHost = game.youId === game.hostId
 
@@ -50,9 +53,19 @@ export function Lobby({
     <div className="px-5 pt-6 pb-10 animate-fade-in">
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-heading text-4xl tracking-wide leading-none">LOBBY</h1>
-        <Button variant="ghost" size="sm" onClick={onLeave} aria-label="Verlassen">
-          <LogOut className="w-5 h-5" />
-        </Button>
+        <div className="flex gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setHelp(true)}
+            aria-label="Regeln und Hilfe"
+          >
+            <HelpCircle className="w-5 h-5" />
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onLeave} aria-label="Verlassen">
+            <LogOut className="w-5 h-5" />
+          </Button>
+        </div>
       </div>
 
       <Card className="text-center py-7">
@@ -216,6 +229,14 @@ export function Lobby({
         <p className="text-center text-sm text-white/40 mt-8">
           Warten, bis der Host startet …
         </p>
+      )}
+
+      {help && (
+        <HelpSheet
+          initial={PHASE_HELP.lobby.section}
+          hint={PHASE_HELP.lobby.hint}
+          onClose={() => setHelp(false)}
+        />
       )}
     </div>
   )

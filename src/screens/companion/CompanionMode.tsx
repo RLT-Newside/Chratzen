@@ -1,5 +1,6 @@
-import { ArrowLeft, RotateCcw, Undo2, Users } from 'lucide-react'
+import { ArrowLeft, HelpCircle, RotateCcw, Undo2, Users } from 'lucide-react'
 import { useState } from 'react'
+import { HelpSheet } from '../../components/HelpSheet'
 import { Button, ConfirmDialog } from '../../components/ui'
 import { useCompanion } from '../../hooks/useCompanion'
 import { PotHeader } from './PotHeader'
@@ -7,12 +8,13 @@ import { RoundPhase } from './RoundPhase'
 import { Setup } from './Setup'
 import { Standings } from './Standings'
 
-export function CompanionMode({ onExit }: { onExit: () => void }) {
+export function CompanionMode({ onExit, onLearn }: { onExit: () => void; onLearn: () => void }) {
   const c = useCompanion()
   const { state } = c
   const [tab, setTab] = useState<'round' | 'kasse'>('round')
   const [editRoster, setEditRoster] = useState(false)
   const [askReset, setAskReset] = useState(false)
+  const [help, setHelp] = useState(false)
 
   if (state.players.length === 0 || editRoster) {
     return (
@@ -20,6 +22,7 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
         initialNames={state.players.map((p) => p.name)}
         initialAnte={state.ante}
         onBack={() => (editRoster ? setEditRoster(false) : onExit())}
+        onLearn={onLearn}
         onStart={(names, ante) => {
           c.configure(names, ante)
           setEditRoster(false)
@@ -35,6 +38,9 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <div className="flex gap-1">
+          <Button variant="ghost" size="sm" onClick={() => setHelp(true)} aria-label="Regeln und Hilfe">
+            <HelpCircle className="w-4 h-4" />
+          </Button>
           <Button
             variant="ghost"
             size="sm"
@@ -105,6 +111,15 @@ export function CompanionMode({ onExit }: { onExit: () => void }) {
           ))}
         </div>
       </nav>
+
+      {help && (
+        <HelpSheet
+          initial="geld"
+          hint="Ihr spielt am Tisch, die App rechnet: pro Spieler Rolle und Stiche eintippen, zusammen genau vier."
+          onOpenTutorial={onLearn}
+          onClose={() => setHelp(false)}
+        />
+      )}
 
       {askReset && (
         <ConfirmDialog

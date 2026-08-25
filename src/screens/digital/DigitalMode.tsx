@@ -3,7 +3,7 @@ import { Join } from './Join'
 import { Lobby } from './Lobby'
 import { Table } from './Table'
 
-export function DigitalMode({ onExit }: { onExit: () => void }) {
+export function DigitalMode({ onExit, onLearn }: { onExit: () => void; onLearn: () => void }) {
   const net = useOnline()
   const { game, code } = net
 
@@ -24,6 +24,7 @@ export function DigitalMode({ onExit }: { onExit: () => void }) {
           onHost={net.hostTable}
           onJoin={net.join}
           onBack={onExit}
+          onLearn={onLearn}
         />
       ) : game.phase === 'lobby' ? (
         <Lobby

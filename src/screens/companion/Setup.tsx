@@ -1,5 +1,6 @@
-import { ArrowLeft, Plus, X } from 'lucide-react'
+import { ArrowLeft, HelpCircle, Plus, X } from 'lucide-react'
 import { useState } from 'react'
+import { HelpSheet } from '../../components/HelpSheet'
 import { Button, Card, SectionTitle, Segmented } from '../../components/ui'
 import { ANTE_OPTIONS, formatChf } from '../../lib/money'
 
@@ -11,16 +12,19 @@ export function Setup({
   initialAnte,
   onStart,
   onBack,
+  onLearn,
 }: {
   initialNames: string[]
   initialAnte: number
   onStart: (names: string[], ante: number) => void
   onBack: () => void
+  onLearn: () => void
 }) {
   const [names, setNames] = useState<string[]>(
     initialNames.length >= MIN_PLAYERS ? initialNames : ['', '', ''],
   )
   const [ante, setAnte] = useState(initialAnte)
+  const [help, setHelp] = useState(false)
 
   const filled = names.map((n) => n.trim()).filter(Boolean)
   const ready = filled.length >= MIN_PLAYERS && filled.length === names.length
@@ -32,6 +36,15 @@ export function Setup({
           <ArrowLeft className="w-5 h-5" />
         </Button>
         <h1 className="font-heading text-4xl tracking-wide leading-none">COMPANION</h1>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto"
+          onClick={() => setHelp(true)}
+          aria-label="Regeln und Hilfe"
+        >
+          <HelpCircle className="w-5 h-5" />
+        </Button>
       </div>
 
       <SectionTitle>Grundeinsatz</SectionTitle>
@@ -100,6 +113,15 @@ export function Setup({
       >
         {ready ? 'Spiel starten' : 'Alle Namen ausfüllen'}
       </Button>
+
+      {help && (
+        <HelpSheet
+          initial="modi"
+          hint="Companion rechnet nur — angesagt und gestochen wird mit echten Karten am Tisch."
+          onOpenTutorial={onLearn}
+          onClose={() => setHelp(false)}
+        />
+      )}
     </div>
   )
 }

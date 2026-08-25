@@ -1,7 +1,7 @@
-import { ChevronRight, Coins, LayoutGrid, Wifi } from 'lucide-react'
+import { ChevronRight, Coins, GraduationCap, LayoutGrid, Wifi } from 'lucide-react'
 import { SUITS } from '../components/suits'
 
-export type Mode = 'menu' | 'companion' | 'digital' | 'cards'
+export type Mode = 'menu' | 'companion' | 'digital' | 'cards' | 'tutorial'
 
 function ModeCard({
   title,
@@ -72,6 +72,25 @@ export function MainMenu({ onSelect }: { onSelect: (m: Mode) => void }) {
         </h1>
         <p className="label-caption mt-3">Schweizer Kartenspiel · 36 Jasskarten</p>
       </header>
+
+      {/* Steht bewusst vor den Modi: wer die Regeln nicht kennt, kann mit
+          keinem der beiden etwas anfangen. */}
+      <button
+        type="button"
+        onClick={() => onSelect('tutorial')}
+        className="press-scale glass rounded-2xl w-full p-4 mb-3 flex items-center gap-3 text-left"
+      >
+        <div className="shrink-0 w-10 h-10 rounded-xl glass-elevated grid place-items-center text-brand">
+          <GraduationCap className="w-5 h-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-white/90">Noch nie Chratzen gespielt?</p>
+          <p className="text-xs text-white/45 leading-snug mt-0.5">
+            Die Regeln in neun Kapiteln — Ansagen, Stechen, Bete.
+          </p>
+        </div>
+        <ChevronRight className="w-5 h-5 text-white/25" />
+      </button>
 
       <div className="space-y-3">
         <ModeCard

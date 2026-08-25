@@ -1,7 +1,9 @@
-import { LogOut, Shield, UserMinus, UserPlus, Wallet } from 'lucide-react'
+import { HelpCircle, LogOut, Shield, UserMinus, UserPlus, Wallet } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { HelpSheet } from '../../components/HelpSheet'
 import { CardBack, PlayingCard } from '../../components/PlayingCard'
 import { Button, Card, SectionTitle, Segmented } from '../../components/ui'
+import { PHASE_HELP } from '../../content/rules'
 import { type CardId, RANK_NAME, cardId, sortHand } from '../../lib/cards'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
@@ -46,6 +48,7 @@ export function Table({
   const [selected, setSelected] = useState<CardId[]>([])
   const [manage, setManage] = useState(false)
   const [kasse, setKasse] = useState(false)
+  const [help, setHelp] = useState(false)
 
   // Auswahl gehört immer zur aktuellen Phase — beim Wechsel wegwerfen.
   useEffect(() => setSelected([]), [game.phase])
@@ -138,6 +141,11 @@ export function Table({
             <Shield className="w-5 h-5" />
           </Button>
         )}
+        {/* Die Hilfe kennt die Phase — sie öffnet direkt beim passenden Kapitel,
+            statt Neulinge im Regelwerk suchen zu lassen. */}
+        <Button variant="ghost" size="sm" onClick={() => setHelp(true)} aria-label="Regeln und Hilfe">
+          <HelpCircle className="w-5 h-5" />
+        </Button>
         <Button variant="ghost" size="sm" onClick={onLeave} aria-label="Tisch verlassen">
           <LogOut className="w-5 h-5" />
         </Button>
@@ -435,6 +443,13 @@ export function Table({
         )}
       </div>
       {kasse && <Kasse game={game} onClose={() => setKasse(false)} />}
+      {help && (
+        <HelpSheet
+          initial={PHASE_HELP[game.phase].section}
+          hint={PHASE_HELP[game.phase].hint}
+          onClose={() => setHelp(false)}
+        />
+      )}
     </div>
   )
 }
