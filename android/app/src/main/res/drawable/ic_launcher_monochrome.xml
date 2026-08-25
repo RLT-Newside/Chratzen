@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Chratzen themed icon (Android 13+). The system tints this silhouette. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108"
+    android:tint="#000000">
+    <path android:fillColor="#FF000000" android:pathData="M51.8,29 C51,25.5 51.5,23.5 54,22 C56.5,23.5 57,25.5 56.2,29 Z" />
+    <path android:fillColor="#FF000000" android:pathData="M30.5,41 C30.5,32 40,27 54,27 C68,27 77.5,32 77.5,41 C77.5,45 70,48 54,48 C38,48 30.5,45 30.5,41 Z" />
+    <path android:fillColor="#FF000000" android:pathData="M34,50.5 C31.5,62 34.5,71 42.5,79 C46.5,82.8 51,84.6 54,85.3 C57,84.6 61.5,82.8 65.5,79 C73.5,71 76.5,62 74,50.5 C68,53.2 61,54.2 54,54.2 C47,54.2 40,53.2 34,50.5 Z" />
+</vector>

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="108" height="108" viewBox="0 0 108 108">
+  <!-- Chratzen app icon — background layer: card-table felt. -->
+  <defs>
+    <radialGradient id="felt" cx="54" cy="46" r="78" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1A4029"/>
+      <stop offset="0.55" stop-color="#12301F"/>
+      <stop offset="1" stop-color="#0B1A10"/>
+    </radialGradient>
+  </defs>
+  <rect width="108" height="108" fill="url(#felt)"/>
+</svg>
