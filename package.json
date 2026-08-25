@@ -1,7 +1,7 @@
 {
   "name": "chratzen",
   "private": true,
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Chratzen — Schweizer Kartenspiel: Companion (Pott-Manager) + Digital (Online Multiplayer)",
   "license": "GPL-3.0-or-later",
   "repository": {
