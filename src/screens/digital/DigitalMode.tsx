@@ -23,6 +23,8 @@ export function DigitalMode({ onExit, onLearn }: { onExit: () => void; onLearn: 
           onCreate={net.create}
           onHost={net.hostTable}
           onJoin={net.join}
+          onJoinBluetooth={net.joinBluetooth}
+          connectingTo={net.connectingTo}
           onBack={onExit}
           onLearn={onLearn}
         />
@@ -31,6 +33,8 @@ export function DigitalMode({ onExit, onLearn }: { onExit: () => void; onLearn: 
           game={game}
           code={code}
           hostInfo={net.hostInfo}
+          bluetooth={net.bluetooth}
+          onOpenBluetooth={net.openBluetooth}
           onStart={net.start}
           onKick={net.kick}
           onAddBot={net.addBot}
@@ -63,7 +67,8 @@ export function DigitalMode({ onExit, onLearn }: { onExit: () => void; onLearn: 
         </div>
       )}
 
-      {!net.connected && (
+      {/* Auf dem Join-Screen zeigt das Abzeichen oben den Stand — verloren geht erst ein Tisch. */}
+      {!net.connected && game && (
         <div className="fixed top-0 inset-x-0 z-50 bg-amber-500/15 border-b border-amber-500/25 py-1.5 text-center text-[11px] text-amber-200">
           Verbindung verloren — versuche neu zu verbinden …
         </div>

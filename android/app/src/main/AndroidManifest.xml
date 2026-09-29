@@ -39,4 +39,18 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Bluetooth-Tisch (ChratzenBluetoothPlugin). Bis Android 11 genuegen die
+         alten Rechte; nur die Geraetesuche will dort zusaetzlich Standort. -->
+    <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
+    <!-- Ab Android 12: "Geraete in der Naehe". Gesucht wird nach Mitspielern, nicht nach dem Ort. -->
+    <uses-permission
+        android:name="android.permission.BLUETOOTH_SCAN"
+        android:usesPermissionFlags="neverForLocation" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <!-- Ohne Bluetooth bleibt der WLAN-Tisch: die App soll trotzdem installierbar sein. -->
+    <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
 </manifest>

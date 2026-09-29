@@ -7,7 +7,7 @@ Zwei Modi:
 | Modus | Status | Was er macht |
 |---|---|---|
 | **Companion** (Kasse) | ✅ | Ihr spielt mit echten Karten und sagt am Tisch an. Die App führt **nur die Kasse**: Grundeinsatz, Pott, Ausschüttung, Bete. **Braucht keinen Server.** |
-| **Digital** (Multiplayer) | ✅ | Raumcode, virtueller Tisch, Austeilen/Tauschen/Stechen automatisch, Wiedereinstieg per Token. |
+| **Digital** (Multiplayer) | ✅ | Raumcode oder Bluetooth, virtueller Tisch, Austeilen/Tauschen/Stechen automatisch, Wiedereinstieg per Token. |
 
 ## Wer führt den Tisch?
 
@@ -17,10 +17,10 @@ den Spielstand hält. Dafür gibt es zwei Wege — **dieselbe Logik, anderer Dra
 | | Tisch auf dem Handy | Tisch auf einem Server |
 |---|---|---|
 | Wo | APK, Menü → Digital → *Tisch auf diesem Gerät* | Node-Prozess (Cloud, Pi, Laptop) |
-| Reichweite | gleiches WLAN oder Hotspot des Hosts | überall via Internet |
+| Reichweite | gleiches WLAN, Hotspot des Hosts oder Bluetooth (~10 m) | überall via Internet |
 | Kosten | keine, kein Internet nötig | Hosting |
-| Gäste | nur ein Browser, keine Installation | nur ein Browser |
-| Technik | `ChratzenHostPlugin` (Java/NanoWSD) liefert die App per HTTP aus und nimmt am selben Port WebSockets an; `TableHost` läuft in TypeScript in der App | `server/index.ts` fährt denselben `TableHost` hinter `ws` |
+| Gäste | nur ein Browser, keine Installation — per Bluetooth die APK | nur ein Browser |
+| Technik | `ChratzenHostPlugin` (Java/NanoWSD) liefert die App per HTTP aus und nimmt am selben Port WebSockets an, `ChratzenBluetoothPlugin` dasselbe per RFCOMM; `TableHost` läuft in TypeScript in der App | `server/index.ts` fährt denselben `TableHost` hinter `ws` |
 
 Der Kern (`src/lib/host.ts`) kennt weder Node noch DOM: er bekommt Nachrichten
 und gibt zurück, was an welche Verbindung geht. Deshalb gibt es die Spiellogik
@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 108 Unit-Tests (Regeln, Engine, Bots, Tischwirt)
+npm test         # 113 Unit-Tests (Regeln, Engine, Bots, Tischwirt, Transport)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -53,7 +53,7 @@ src/
   lib/host.ts         Tischwirt: Räume, Sitzungen, Rauswurf, Bot-Takt
   lib/bot.ts          Bot-Heuristik: ansagen, tauschen, ausspielen
   lib/protocol.ts     JSON-Nachrichten zwischen Gast und Tischwirt
-  lib/transport.ts    WebSocket-Gast bzw. Host-in-der-WebView
+  lib/transport.ts    WebSocket- und Bluetooth-Gast bzw. Host-in-der-WebView
   hooks/useCompanion  Kassen-Zustand des Companion (localStorage, Undo)
   hooks/useOnline     Verbindung, Sitzungs-Token, Auto-Reconnect
   components/         Button/Card/Segmented/Stepper, Spielkarte, Jass-Farben
@@ -62,18 +62,19 @@ server/
   index.ts            Express + ws über TableHost, Räume im RAM, TTL 30 min
   smoke.ts            E2E-Check inkl. Verbindungsabbruch
 android/
-  …/ChratzenHostPlugin.java   WebSocket-Server im LAN, reine Leitung
+  …/ChratzenHostPlugin.java        WebSocket-Server im LAN, reine Leitung
+  …/ChratzenBluetoothPlugin.java   dasselbe per Bluetooth (RFCOMM), Host und Gast
 ```
 
 ## Protokoll
 
 Nacktes JSON über WebSocket — kein socket.io, damit das Handy-Plugin denselben
-Draht sprechen kann.
+Draht sprechen kann. Per Bluetooth dieselben Nachrichten, eine pro Zeile.
 
 | Gast → Tischwirt | |
 |---|---|
 | `{t:'create', name, ante}` | neuen Tisch eröffnen |
-| `{t:'join', code, name}` | beitreten |
+| `{t:'join', code, name}` | beitreten — per Bluetooth mit leerem `code`: auf dem Host-Handy steht nur ein Tisch |
 | `{t:'rejoin', code, token}` | nach Abbruch zurück an den Platz |
 | `{t:'start'}` | Partie starten (nur Host) |
 | `{t:'blind', take}` | Blinden annehmen oder ablehnen (nur Geber) |
@@ -272,7 +273,7 @@ Freigabe entfällt der Ausgleich, weil er alle Zahlen braucht.
 
 Am selben Tisch zu sitzen genügt nicht. Mit reinen **Mobildaten geht es nicht**:
 jedes Gerät hängt einzeln beim Provider hinter CGNAT und kann die anderen nicht
-erreichen.
+erreichen. Dann bleibt Bluetooth, siehe unten.
 
 - **Hotspot des Hosts** — zuverlässigste Variante, kostet kein Datenvolumen und
   braucht keine Internetverbindung.
@@ -298,6 +299,38 @@ zusätzlich `androidScheme: 'http'`, sonst würde die Host-WebView ihre eigene
 
 Der Bildschirm des Hosts bleibt an, solange der Tisch läuft. Wird die App
 geschlossen, ist der Tisch weg.
+
+### Ohne Netz: Bluetooth
+
+Kein WLAN, kein Hotspot — etwa in der Berghütte? Dann per Bluetooth. Dafür
+brauchen **alle die APK**: ein Browser kann kein Bluetooth Classic.
+
+1. Host: Tisch eröffnen wie oben, in der Lobby **Bluetooth öffnen**. Android
+   fragt nach «Geräte in der Nähe» und macht das Handy ein paar Minuten lang
+   sichtbar; *Wieder sichtbar machen* verlängert.
+2. Gäste: **Digital** → Name → **Per Bluetooth beitreten** → das Handy des Hosts
+   antippen. Kein Code — auf dem Host-Handy steht ja nur ein Tisch.
+
+WLAN und Bluetooth laufen gleichzeitig: ein Gast im Browser und einer per
+Bluetooth sitzen am selben Tisch.
+
+- **Bis zu 7 Gäste** — mehr Verbindungen erlaubt Bluetooth nicht, manche Handys
+  schaffen weniger.
+- **Keine Kopplung nötig.** Wer schon gekoppelt ist, findet den Host auch, wenn
+  er nicht mehr sichtbar ist.
+- **Abbrüche** (ausser Reichweite, Bluetooth kurz aus) holt die App still nach:
+  sie verbindet neu und setzt den Gast an seinen Platz zurück, auch nach einem
+  Neustart der App. Klappt schon der erste Versuch nicht, bleibt es bei einer
+  Meldung — dann war es wohl das falsche Handy.
+- Der **Gerätename** bleibt unangetastet. Die Lobby zeigt ihn an, damit die
+  Gäste wissen, welches Handy sie antippen.
+- Bis **Android 11** sucht Android nur mit Standort-Berechtigung und
+  eingeschaltetem Standort nach Geräten — eine Vorgabe des Systems.
+
+`ChratzenBluetoothPlugin` ist dieselbe dünne Leitung wie das WLAN-Plugin: Es
+nimmt Verbindungen an (Host) oder baut eine auf (Gast) und reicht JSON-Zeilen
+durch. Die Verbindungs-IDs tragen die Vorsilbe `bt:`, daran erkennt der
+Host-Transport, über welches Plugin eine Antwort geht.
 
 ## Tisch auf einem Server
 

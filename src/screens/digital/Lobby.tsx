@@ -1,17 +1,19 @@
-import { Bot, Check, Copy, HelpCircle, LogOut, UserMinus, WifiOff } from 'lucide-react'
+import { Bluetooth, Bot, Check, Copy, HelpCircle, LogOut, UserMinus, WifiOff } from 'lucide-react'
 import { useState } from 'react'
 import { HelpSheet } from '../../components/HelpSheet'
 import { PHASE_HELP } from '../../content/rules'
 import { Button, Card, SectionTitle, Segmented } from '../../components/ui'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
-import type { HostInfo } from '../../lib/transport'
+import type { BluetoothInfo, HostInfo } from '../../lib/transport'
 import { PausePicker } from './PausePicker'
 
 export function Lobby({
   game,
   code,
   hostInfo,
+  bluetooth,
+  onOpenBluetooth,
   onStart,
   onKick,
   onAddBot,
@@ -22,6 +24,8 @@ export function Lobby({
   game: ClientGame
   code: string
   hostInfo: HostInfo | null
+  bluetooth: BluetoothInfo | null
+  onOpenBluetooth: () => void
   onStart: () => void
   onKick: (playerId: string) => void
   onAddBot: () => void
@@ -94,7 +98,7 @@ export function Lobby({
             <p className="text-xs text-amber-200/85 leading-relaxed">
               Kein lokales Netz gefunden. Schalte den Hotspot ein oder verbinde dich mit
               einem WLAN — mit reinen Mobildaten können die anderen dein Gerät nicht
-              erreichen.
+              erreichen. Oder öffne unten Bluetooth.
             </p>
           </div>
         </Card>
@@ -140,6 +144,43 @@ export function Lobby({
             </p>
           )}
         </>
+      )}
+
+      {hostInfo && (
+        <Card className="mt-3">
+          <div className="flex gap-3">
+            <Bluetooth className="w-5 h-5 text-sky-300/80 shrink-0 mt-0.5" />
+            <div className="min-w-0 flex-1">
+              {bluetooth ? (
+                <>
+                  <p className="text-sm text-white/85 truncate">
+                    Per Bluetooth: <span className="font-medium">{bluetooth.name || 'dieses Handy'}</span>
+                  </p>
+                  <p className="text-xs text-white/40 mt-1 leading-relaxed">
+                    {bluetooth.visible
+                      ? 'Ein paar Minuten lang sichtbar. '
+                      : 'Nicht sichtbar — finden kann dich nur, wer schon gekoppelt ist. '}
+                    Die anderen öffnen die App → Digital → Per Bluetooth beitreten und tippen
+                    auf dein Handy.
+                  </p>
+                  <Button size="sm" className="mt-3" onClick={onOpenBluetooth}>
+                    Wieder sichtbar machen
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-white/85">Kein WLAN? Per Bluetooth.</p>
+                  <p className="text-xs text-white/40 mt-1 leading-relaxed">
+                    Wer die App hat, tritt auch ganz ohne Netz bei — ohne Code.
+                  </p>
+                  <Button size="sm" className="mt-3" onClick={onOpenBluetooth}>
+                    Bluetooth öffnen
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </Card>
       )}
 
       <p className="text-center text-xs text-white/35 mt-3">
