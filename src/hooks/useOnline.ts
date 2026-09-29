@@ -3,8 +3,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ClientGame } from '../lib/game'
 import type { ClientMsg } from '../lib/protocol'
 import {
+  type BluetoothInfo,
   type HostInfo,
   type Transport,
+  NativeBluetooth,
+  bluetoothError,
+  createBluetoothTransport,
   createHostTransport,
   createWsTransport,
 } from '../lib/transport'
@@ -13,10 +17,11 @@ import type { Call } from '../lib/rules'
 const SESSION_KEY = 'chratzen.session.v1'
 const SERVER_KEY = 'chratzen.server'
 
-type Session = { code: string; token: string }
+/** `bt`: Adresse des Host-Handys, falls der Platz per Bluetooth besetzt wurde. */
+type Session = { code: string; token: string; bt?: string }
 
-/** Gast an einem fremden Tisch, oder dieses Gerät ist selbst der Tisch. */
-type Mode = { kind: 'guest'; url: string } | { kind: 'host' }
+/** Gast an einem fremden Tisch (WebSocket oder Bluetooth), oder dieses Gerät ist selbst der Tisch. */
+type Mode = { kind: 'guest'; url: string } | { kind: 'bluetooth'; address: string } | { kind: 'host' }
 
 export const isNative = Capacitor.isNativePlatform()
 
@@ -27,6 +32,12 @@ function readSession(): Session | null {
   } catch {
     return null
   }
+}
+
+/** Nach einem Neustart zurück an den Bluetooth-Tisch — eine Adresse zum Eintippen gibt es dort nicht. */
+function initialMode(): Mode {
+  const bt = readSession()?.bt
+  return bt && isNative ? { kind: 'bluetooth', address: bt } : { kind: 'guest', url: getServerUrl() }
 }
 
 /**
@@ -49,32 +60,43 @@ export function useOnline() {
   /** Nachricht, die abgeschickt wird, sobald die Verbindung offen ist. */
   const pending = useRef<ClientMsg | null>(null)
 
-  const [mode, setMode] = useState<Mode>(() => ({ kind: 'guest', url: getServerUrl() }))
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [connected, setConnected] = useState(false)
   const [game, setGame] = useState<ClientGame | null>(null)
   const [code, setCode] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hostInfo, setHostInfo] = useState<HostInfo | null>(null)
+  /** Host: Tisch ist auch per Bluetooth offen. */
+  const [bluetooth, setBluetooth] = useState<BluetoothInfo | null>(null)
+  /** Bluetooth-Gast: erster Verbindungsaufbau läuft. */
+  const [linking, setLinking] = useState(false)
 
   useEffect(() => {
+    setLinking(mode.kind === 'bluetooth')
     const handlers = {
       onOpen: () => {
         setConnected(true)
+        setLinking(false)
         const queued = pending.current
         pending.current = null
         if (queued) return transportRef.current?.send(queued)
         // Nach Verbindungsabbruch automatisch zurück in die laufende Partie.
         const session = readSession()
-        if (session) transportRef.current?.send({ t: 'rejoin', ...session })
+        if (session) transportRef.current?.send({ t: 'rejoin', code: session.code, token: session.token })
       },
-      onClose: () => setConnected(false),
+      onClose: () => {
+        setConnected(false)
+        setLinking(false)
+      },
       onError: (text: string) => setError(text),
       onMessage: (msg: import('../lib/protocol').ServerMsg) => {
         switch (msg.t) {
-          case 'joined':
-            localStorage.setItem(SESSION_KEY, JSON.stringify({ code: msg.code, token: msg.token }))
+          case 'joined': {
+            const bt = mode.kind === 'bluetooth' ? mode.address : undefined
+            localStorage.setItem(SESSION_KEY, JSON.stringify({ code: msg.code, token: msg.token, bt }))
             setCode(msg.code)
             break
+          }
           case 'state':
             setCode(msg.code)
             setGame(msg.game)
@@ -100,12 +122,16 @@ export function useOnline() {
     const transport =
       mode.kind === 'host'
         ? createHostTransport(handlers, setHostInfo)
-        : createWsTransport(mode.url, handlers)
+        : mode.kind === 'bluetooth'
+          ? createBluetoothTransport(mode.address, handlers)
+          : createWsTransport(mode.url, handlers)
     transportRef.current = transport
 
     return () => {
       transportRef.current = null
       setConnected(false)
+      // Der Host-Transport schliesst auch den Bluetooth-Server.
+      setBluetooth(null)
       transport.close()
     }
   }, [mode])
@@ -142,6 +168,9 @@ export function useOnline() {
     code,
     error,
     hostInfo,
+    bluetooth,
+    /** Adresse des Bluetooth-Hosts, zu dem gerade verbunden wird. */
+    connectingTo: linking && mode.kind === 'bluetooth' ? mode.address : null,
     isNative,
     isHosting: mode.kind === 'host',
     server: mode.kind === 'guest' ? mode.url : '',
@@ -155,6 +184,16 @@ export function useOnline() {
       localStorage.removeItem(SESSION_KEY)
       pending.current = { t: 'create', name, ante }
       setMode({ kind: 'host' })
+    },
+    /** Host: Tisch zusätzlich per Bluetooth anbieten — für Gäste mit App, ganz ohne Netz. */
+    openBluetooth: () => {
+      NativeBluetooth.host().then(setBluetooth, (e) => setError(bluetoothError(e)))
+    },
+    /** Gast: an den Tisch auf diesem Gerät — per Bluetooth gibt es dort nur einen, also kein Code. */
+    joinBluetooth: (address: string, name: string) => {
+      // Schon an diesem Tisch gesessen? Dann zurück an den alten Platz statt neu beitreten.
+      pending.current = readSession()?.bt === address ? null : { t: 'join', code: '', name }
+      setMode({ kind: 'bluetooth', address })
     },
     create: (name: string, ante: number) => send({ t: 'create', name, ante }),
     join: (roomCode: string, name: string) =>

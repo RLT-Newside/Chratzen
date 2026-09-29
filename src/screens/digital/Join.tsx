@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { HelpSheet } from '../../components/HelpSheet'
 import { Button, SectionTitle, Segmented } from '../../components/ui'
 import { ANTE_OPTIONS, formatChf } from '../../lib/money'
+import { BluetoothPicker } from './BluetoothPicker'
 
 export function Join({
   connected,
@@ -12,6 +13,8 @@ export function Join({
   onCreate,
   onHost,
   onJoin,
+  onJoinBluetooth,
+  connectingTo,
   onBack,
   onLearn,
 }: {
@@ -22,6 +25,8 @@ export function Join({
   onCreate: (name: string, ante: number) => void
   onHost: (name: string, ante: number) => void
   onJoin: (code: string, name: string) => void
+  onJoinBluetooth: (address: string, name: string) => void
+  connectingTo: string | null
   onBack: () => void
   onLearn: () => void
 }) {
@@ -143,7 +148,8 @@ export function Join({
             <p className="text-xs text-white/35 mt-2 leading-relaxed">
               Dein Handy führt den Tisch und liefert die App gleich mit aus: die anderen
               brauchen nur einen Browser, keine Installation. Alle müssen in deinem Hotspot
-              oder im selben WLAN sein — Internet braucht es keines.
+              oder im selben WLAN sein — Internet braucht es keines. Ohne WLAN geht es in der
+              Lobby auch per Bluetooth.
             </p>
             {server && (
               <Button
@@ -174,6 +180,17 @@ export function Join({
         <span className="label-caption">oder</span>
         <span className="h-px flex-1 bg-white/10" />
       </div>
+
+      {isNative && (
+        <div className="mb-8">
+          <SectionTitle>Per Bluetooth beitreten</SectionTitle>
+          <BluetoothPicker
+            disabled={!hasName}
+            connectingTo={connectingTo}
+            onPick={(d) => onJoinBluetooth(d.address, name.trim())}
+          />
+        </div>
+      )}
 
       <SectionTitle>Mit Code beitreten</SectionTitle>
       <div className="flex gap-2">

@@ -1,10 +1,11 @@
 /**
- * Zwei Wege zum Tischwirt:
+ * Wege zum Tischwirt:
  *
- * - Gast: nackter WebSocket zu einem Server oder zum Host-Handy.
- * - Host: der Tischwirt läuft direkt in dieser WebView. Ein natives Plugin
- *   nimmt die Verbindungen der Gäste an und reicht nur die Strings durch —
- *   die Spiellogik bleibt hier in TypeScript.
+ * - Gast: nackter WebSocket zu einem Server oder zum Host-Handy — oder, ohne
+ *   WLAN, Bluetooth zum Host-Handy (nur in der App).
+ * - Host: der Tischwirt läuft direkt in dieser WebView. Native Plugins
+ *   nehmen die Verbindungen der Gäste an, per WLAN und per Bluetooth, und
+ *   reichen nur die Strings durch — die Spiellogik bleibt hier in TypeScript.
  */
 import { type PluginListenerHandle, registerPlugin } from '@capacitor/core'
 import { TableHost } from './host'
@@ -50,6 +51,49 @@ type ChratzenHostPlugin = {
 
 export const NativeHost = registerPlugin<ChratzenHostPlugin>('ChratzenHost')
 
+export type BtDevice = { address: string; name: string; paired: boolean }
+/** `visible`: taucht ein paar Minuten in der Suche der Gäste auf. */
+export type BluetoothInfo = { name: string; visible: boolean }
+
+type ChratzenBluetoothPlugin = {
+  /** Host: Tisch zusätzlich per Bluetooth anbieten. Nochmals aufrufen macht wieder sichtbar. */
+  host(): Promise<BluetoothInfo>
+  /** Gekoppelte Geräte sofort, gefundene kommen als `device`, am Ende `scanEnd`. */
+  scan(): Promise<{ devices: BtDevice[]; searching: boolean; locationOff: boolean }>
+  connect(o: { address: string }): Promise<{ connId: string }>
+  send(o: { connId: string; data: string }): Promise<void>
+  disconnect(o: { connId: string }): Promise<void>
+  stop(): Promise<void>
+  addListener(
+    event: 'message' | 'close',
+    cb: (data: { connId: string; data?: string }) => void,
+  ): Promise<PluginListenerHandle>
+  addListener(event: 'device', cb: (device: BtDevice) => void): Promise<PluginListenerHandle>
+  addListener(event: 'scanEnd', cb: () => void): Promise<PluginListenerHandle>
+}
+
+export const NativeBluetooth = registerPlugin<ChratzenBluetoothPlugin>('ChratzenBluetooth')
+
+/** Das Plugin meldet Codes, die Texte stehen hier. */
+const BLUETOOTH_ERRORS: Record<string, string> = {
+  unavailable: 'Dieses Gerät hat kein Bluetooth.',
+  denied: 'Ohne die Berechtigung «Geräte in der Nähe» geht Bluetooth nicht.',
+  location: 'Bis Android 11 sucht das Handy nur mit Standort-Berechtigung nach Geräten.',
+  off: 'Bluetooth ist ausgeschaltet.',
+  listen: 'Bluetooth-Tisch konnte nicht geöffnet werden.',
+  connect: 'Tisch nicht erreichbar. Ist der Host in der Nähe und hat Bluetooth geöffnet?',
+}
+
+export function bluetoothError(e: unknown): string {
+  const code = (e as { code?: unknown } | null)?.code
+  return BLUETOOTH_ERRORS[String(code)] ?? 'Bluetooth hat nicht geklappt.'
+}
+
+/** Bluetooth-Verbindungen tragen diese Vorsilbe — so weiss der Host, über welches Plugin die Antwort geht. */
+const isBluetooth = (connId: string) => connId.startsWith('bt:')
+/** Nach einem Abbruch so lange warten bis zum nächsten Versuch. */
+const RETRY_MS = 3000
+
 /** `192.168.1.42:3001` oder `https://…` → passende WebSocket-URL. */
 export function toWsUrl(input: string): string {
   const trimmed = input.trim().replace(/\/+$/, '')
@@ -86,7 +130,71 @@ export function createWsTransport(url: string, h: Handlers): Transport {
 }
 
 /**
- * Host-Betrieb: Tischwirt in dieser WebView, Gäste kommen über das Plugin rein.
+ * Gast per Bluetooth. Reisst die Verbindung ab — ausser Reichweite, Host-Handy
+ * kurz weg —, wird still neu verbunden; `onOpen` schickt dann das Rejoin.
+ * Klappt schon der erste Versuch nicht, bleibt es bei der Meldung: dann war es
+ * wohl das falsche Gerät, und ein Dauerversuch würde die nächste Suche abwürgen.
+ */
+export function createBluetoothTransport(address: string, h: Handlers): Transport {
+  let alive = true
+  let connId: string | null = null
+  let opened = false
+  let retry: ReturnType<typeof setTimeout> | undefined
+
+  const connect = async () => {
+    try {
+      const res = await NativeBluetooth.connect({ address })
+      if (!alive) return NativeBluetooth.disconnect(res).catch(() => {})
+      connId = res.connId
+      opened = true
+      h.onOpen()
+    } catch (e) {
+      if (!alive) return
+      if (opened) {
+        retry = setTimeout(connect, RETRY_MS)
+        return
+      }
+      h.onError(bluetoothError(e))
+      h.onClose()
+    }
+  }
+
+  // Die Ereignisse gelten für alle Verbindungen des Plugins — nur die eigene zählt.
+  const subs = [
+    NativeBluetooth.addListener('message', (e) => {
+      if (e.connId !== connId) return
+      const msg = decode<ServerMsg>(String(e.data ?? ''))
+      if (msg) h.onMessage(msg)
+    }),
+    NativeBluetooth.addListener('close', (e) => {
+      if (e.connId !== connId) return
+      connId = null
+      h.onClose()
+      if (alive) retry = setTimeout(connect, RETRY_MS)
+    }),
+  ]
+  // Erst lauschen, dann verbinden — sonst ginge die erste Antwort verloren.
+  Promise.all(subs).then(() => {
+    if (alive) connect()
+  })
+
+  return {
+    send: (msg) => {
+      if (connId) NativeBluetooth.send({ connId, data: encode(msg) }).catch(() => {})
+    },
+    close: () => {
+      alive = false
+      clearTimeout(retry)
+      for (const s of subs) s.then((l) => l.remove()).catch(() => {})
+      if (connId) NativeBluetooth.disconnect({ connId }).catch(() => {})
+      connId = null
+    },
+  }
+}
+
+/**
+ * Host-Betrieb: Tischwirt in dieser WebView, Gäste kommen über die Plugins rein
+ * — per WLAN sofort, per Bluetooth, sobald der Host es in der Lobby öffnet.
  * `onReady` liefert die Adresse, die die anderen eintippen müssen.
  */
 export function createHostTransport(
@@ -97,22 +205,38 @@ export function createHostTransport(
   const table = new TableHost()
   const listeners: PluginListenerHandle[] = []
   let alive = true
+  /** Der eine Tisch auf diesem Gerät. */
+  let code = ''
 
   const dispatch = (out: Outgoing[]) => {
     for (const { to, msg } of out) {
-      if (to === SELF) h.onMessage(msg)
-      else NativeHost.send({ connId: to, data: encode(msg) }).catch(() => {})
+      if (to === SELF) {
+        if (msg.t === 'joined') code = msg.code
+        h.onMessage(msg)
+      } else {
+        const wire = isBluetooth(to) ? NativeBluetooth : NativeHost
+        wire.send({ connId: to, data: encode(msg) }).catch(() => {})
+      }
     }
   }
+
+  const receive = ({ connId, data }: { connId: string; data?: string }) => {
+    const msg = decode<ClientMsg>(String(data ?? ''))
+    if (!msg) return
+    // Per Bluetooth wählt der Gast ein Gerät statt eines Codes — hier steht nur
+    // ein Tisch. Übers WLAN bleibt der Code Pflicht: dort kann jeder im Netz anklopfen.
+    if (msg.t === 'join' && !msg.code && isBluetooth(connId)) msg.code = code
+    dispatch(table.receive(connId, msg))
+  }
+  const drop = ({ connId }: { connId: string }) => dispatch(table.disconnect(connId))
 
   const boot = async () => {
     try {
       listeners.push(
-        await NativeHost.addListener('message', ({ connId, data }) => {
-          const msg = decode<ClientMsg>(String(data ?? ''))
-          if (msg) dispatch(table.receive(connId, msg))
-        }),
-        await NativeHost.addListener('close', ({ connId }) => dispatch(table.disconnect(connId))),
+        await NativeHost.addListener('message', receive),
+        await NativeHost.addListener('close', drop),
+        await NativeBluetooth.addListener('message', receive),
+        await NativeBluetooth.addListener('close', drop),
       )
       const info = await NativeHost.start({ port })
       if (!alive) return NativeHost.stop().catch(() => {})
@@ -136,6 +260,7 @@ export function createHostTransport(
       clearInterval(timer)
       for (const l of listeners) l.remove().catch(() => {})
       NativeHost.stop().catch(() => {})
+      NativeBluetooth.stop().catch(() => {})
       onReady(null)
     },
   }

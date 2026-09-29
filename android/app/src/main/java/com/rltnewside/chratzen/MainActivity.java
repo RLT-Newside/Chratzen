@@ -11,6 +11,8 @@ public class MainActivity extends BridgeActivity {
         // Lokales Plugin: nimmt im LAN Verbindungen an, damit dieses Geraet
         // selbst den Tisch hosten kann.
         registerPlugin(ChratzenHostPlugin.class);
+        // Dasselbe ohne WLAN: Tisch und Gaeste per Bluetooth.
+        registerPlugin(ChratzenBluetoothPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }
