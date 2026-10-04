@@ -5,6 +5,7 @@ dist
 *.local
 .env
 .env.*
+.mcp.json
 
 # Android: Quelle bleibt im Repo, Build-Output nicht
 android/.gradle/
