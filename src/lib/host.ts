@@ -13,6 +13,7 @@ import {
   applyCall,
   applyExchange,
   applySleeperDiscard,
+  callContext,
   createGame,
   currentActor,
   declareBlind,
@@ -344,17 +345,7 @@ export class TableHost {
         err = declineBlind(g, actor.id)
         break
       case 'calls':
-        err = applyCall(
-          g,
-          actor.id,
-          botCall({
-            hand,
-            trump,
-            someoneKratzed: g.players.some((p) => g.calls[p.id] === 'kratzen'),
-            awaitLetzter: g.awaitLetzter,
-            isLastToSpeak: g.callsLeft <= 1,
-          }),
-        )
+        err = applyCall(g, actor.id, botCall({ hand, trump, ...callContext(g, actor.id) }))
         break
       case 'exchange':
         err = applyExchange(g, actor.id, botExchange(hand, trump))

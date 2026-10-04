@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 113 Unit-Tests (Regeln, Engine, Bots, Tischwirt, Transport)
+npm test         # 120 Unit-Tests (Regeln, Engine, Bots, Tischwirt, Transport)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -171,7 +171,8 @@ Dazu Verlauf, manuelle Korrektur in Einsatz-Schritten und Rückgängig.
   zweiten Chance. **Gefragt wird er immer** — geht bis dahin niemand mit, steht ihm
   nur das Mitgehen offen; geht jemand mit, wählt er frei. Stilles Umbuchen gibt es
   nicht: verpflichtet wird niemand wortlos auf Geld. Nur einer pro Runde.
-- **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein.
+- **Alle passen**: neuer Trumpf aufdecken, max. 3×; danach neu mischen und alle legen erneut ein. Beim
+  Neumischen rückt auch der **Geber** einen weiter — sonst könnte derselbe Spieler den Blinden endlos wiederholen.
 - **Bannerrunde**: Trumpf ist eine 10 → Geber muss kratzen, alle anderen müssen mitgehen. Gilt nur beim
   Grundpott (Pott = Grundeinsatz × Spielerzahl); liegt schon Bete drauf, wird ganz normal angesagt.
 - **Blinder**: Nur der Geber, und nur direkt nach dem Austeilen — er hat da erst den
@@ -225,7 +226,13 @@ Karten und vier Stichen bringt Suchen wenig:
 - **Ansage** nach geschätzten Stichen: hohe Trümpfe fast sicher, kleine oft, ein
   Ass manchmal. Ab ~1.8 wird gekratzt, ab 0.8 mitgegangen. Als Letzter, wenn
   sonst niemand will, reicht 1.0 — sonst wird ewig neu aufgedeckt.
-- **Tausch**: Trümpfe und Könige/Asse bleiben, der Rest fliegt.
+- **Niemand kratzt allein**: Wer allein kratzt, räumt den Pott ab, ohne dafür
+  spielen zu müssen. Darum hält immer einer dagegen — mit halber Hand über
+  „Letzter" (bindet nur, wenn sonst wirklich niemand mitgeht), und spätestens
+  der letzte Bot vor Menschen geht selber mit. Auf Menschen wartet er nicht: die
+  dürfen passen.
+- **Tausch**: Trümpfe und Könige/Asse bleiben, der Rest fliegt — die schwächsten
+  Karten zuerst.
 - **Ausspielen**: vorne die stärkste Karte, sonst den Stich möglichst billig
   gewinnen, und wenn er nicht zu holen ist, die schwächste Karte abwerfen.
 
