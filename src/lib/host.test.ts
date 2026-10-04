@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { cardId } from './cards'
 import { TableHost } from './host'
 import type { ClientMsg, Outgoing, ServerMsg } from './protocol'
 
@@ -348,6 +349,52 @@ describe('TableHost', () => {
     expect(pick(out, 'c-anna', 'error')).toBeUndefined()
     expect(after?.game.awaitLetzter).toBe(false)
     expect(after?.game.players.find((p) => p.id === letzterId)?.call).toBe('mitgehen')
+  })
+
+  it('lässt einen Kratzer nie allein — die Bots gehen mit', () => {
+    // Wer allein kratzt, räumt den Pott ab, ohne dafür spielen zu müssen.
+    // Deshalb muss am Bot-Tisch immer mindestens einer dagegenhalten.
+    const host = makeHost()
+    openTable(host)
+    for (let k = 0; k < 3; k++) host.receive('c-anna', { t: 'addBot' })
+    host.receive('c-anna', { t: 'setPause', ms: 0 })
+
+    type StateMsg = Extract<ServerMsg, { t: 'state' }> | undefined
+    let state: StateMsg = pick(host.receive('c-anna', { t: 'start' }), 'c-anna', 'state')
+    let contested = 0
+
+    // Anna passt immer — gespielt wird also nur, wenn die Bots sich einigen.
+    for (let step = 0; step < 4000 && contested < 20; step++) {
+      const g = state?.game
+      if (!g) break
+
+      if (g.phase === 'exchange' || g.phase === 'play') {
+        const playing = g.players.filter((p) => p.call === 'kratzen' || p.call === 'mitgehen')
+        expect(playing.map((p) => p.call)).toContain('mitgehen')
+        expect(playing.length).toBeGreaterThanOrEqual(2)
+      }
+
+      // Anna passt immer — in der Bannerrunde geht sie trotzdem mit, dann muss
+      // sie auch tauschen und ausspielen.
+      const annaMove = (): Outgoing[] | null => {
+        if (g.blindOffer) return host.receive('c-anna', { t: 'blind', take: false })
+        if (g.mustDiscardSleeper) return host.receive('c-anna', { t: 'sleeper', card: cardId(g.hand[0]) })
+        if (!g.yourTurn) return null
+        if (g.phase === 'calls') return host.receive('c-anna', { t: 'call', call: 'weiter' })
+        if (g.phase === 'exchange') return host.receive('c-anna', { t: 'exchange', cards: [] })
+        if (g.phase === 'play') return host.receive('c-anna', { t: 'play', card: g.legal[0] })
+        return null
+      }
+
+      const next: Outgoing[] =
+        g.phase === 'settle'
+          ? ((contested += 1), host.receive('c-anna', { t: 'next' }))
+          : (annaMove() ?? host.tick())
+
+      state = pick(next, 'c-anna', 'state') ?? state
+    }
+
+    expect(contested).toBeGreaterThan(0)
   })
 
   it('gibt die Host-Rolle nie an einen Bot weiter', () => {

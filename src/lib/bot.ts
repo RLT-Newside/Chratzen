@@ -37,30 +37,68 @@ const KRATZ = 1.8
 const KRATZ_LAST = 1.0
 /** Ab hier lohnt sich das Mitgehen (Soll: 1 Stich). */
 const MIT = 0.8
+/**
+ * Ab hier sagt der Bot lieber "Letzter" als zu passen: die Hand reicht nicht
+ * sicher, aber sie ist zu schade, um den Kratzer kampflos durchzulassen.
+ */
+const LETZTER = 0.3
 
 export function botCall(opts: {
   hand: Card[]
   trump: Suit
   someoneKratzed: boolean
+  /** Es geht bereits jemand mit — der Kratzer läuft nicht mehr allein durch. */
+  someoneMitgeht: boolean
+  /** Jemand hat "Letzter" gesagt und hält damit schon dagegen. */
+  letzterTaken: boolean
   /** Der Bot wartet als "Letzter" und muss sich jetzt entscheiden. */
   awaitLetzter: boolean
+  /** Als Letzter geht sonst niemand mit — das Mitgehen ist Pflicht. */
+  letzterForced: boolean
   /** Nach ihm sagt niemand mehr an. */
   isLastToSpeak: boolean
+  /** Nach ihm kommt kein Bot mehr — auf Menschen ist kein Verlass. */
+  isLastBot: boolean
+  /** "Letzter" ist gerade eine erlaubte Ansage. */
+  canSayLetzter: boolean
 }): Call {
   const score = expectedTricks(opts.hand, opts.trump)
 
-  // Nach dem Kratzer bleibt nur mitgehen oder passen.
-  if (opts.someoneKratzed || opts.awaitLetzter) return score >= MIT ? 'mitgehen' : 'weiter'
+  if (opts.awaitLetzter) {
+    // Als Letzter angesagt heisst: geht sonst niemand mit, muss man selber.
+    if (opts.letzterForced) return 'mitgehen'
+    return score >= MIT ? 'mitgehen' : 'weiter'
+  }
+
+  // Nach dem Kratzer bleibt nur mitgehen, "Letzter" oder passen.
+  if (opts.someoneKratzed) {
+    if (score >= MIT) return 'mitgehen'
+    // Es hält schon jemand dagegen — ein angesagter "Letzter" muss ja mit,
+    // wenn sonst niemand mitgeht.
+    if (opts.someoneMitgeht || opts.letzterTaken) return 'weiter'
+
+    // Passen hiesse, dem Kratzer den ganzen Pott zu schenken, ohne dass er
+    // dafür spielen muss. Nach dem letzten Bot ist niemand mehr sicher da:
+    // Menschen dürfen passen, also hält der Bot lieber selber dagegen.
+    const lastGuard = opts.isLastToSpeak || opts.isLastBot
+
+    // "Letzter" ist das feinere Mittel — verpflichtet nur, wenn sonst wirklich
+    // niemand mitgeht, sonst entscheidet der Bot später frei.
+    if (opts.canSayLetzter && (lastGuard || score >= LETZTER)) return 'letzter'
+    if (lastGuard) return 'mitgehen'
+    return 'weiter'
+  }
 
   if (score >= KRATZ) return 'kratzen'
   if (opts.isLastToSpeak && score >= KRATZ_LAST) return 'kratzen'
   return 'weiter'
 }
 
-/** Trümpfe und hohe Karten bleiben, der Rest fliegt raus (höchstens 4). */
+/** Trümpfe und hohe Karten bleiben, der Rest fliegt raus — die schwächsten zuerst. */
 export function botExchange(hand: Card[], trump: Suit): CardId[] {
   return hand
     .filter((c) => c.suit !== trump && c.rank < 13)
+    .sort((a, b) => value(a, trump) - value(b, trump))
     .slice(0, 4)
     .map(cardId)
 }

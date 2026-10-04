@@ -173,9 +173,14 @@ describe('Alle passen', () => {
     }
     if (g.flips !== 2 || g.banner) return
 
+    const dealerBefore = g.dealerIndex
     for (let k = 0; k < g.players.length; k++) applyCall(g, g.players[g.turn].id, 'weiter')
     expect(g.flips).toBe(0)
     expect(g.pot).toBe(600)
+    // Neu gemischt heisst auch neu gegeben — sonst bleibt der Blinde ewig beim
+    // selben Spieler.
+    expect(g.dealerIndex).toBe((dealerBefore + 1) % g.players.length)
+    expect(g.blindOffer).toBe(g.players[g.dealerIndex].id)
   })
 })
 

@@ -415,7 +415,10 @@ function nobodyPlays(g: Game) {
   }
   g.flips = 0
   collectAnte(g)
-  g.message = '3× niemand gespielt — neu gemischt, alle legen nach.'
+  // Neu gemischt heisst auch neu gegeben: sonst könnte derselbe Geber den
+  // Blinden beliebig oft ansagen, bloss weil niemand spielt.
+  g.dealerIndex = left(g, g.dealerIndex)
+  g.message = `3× niemand gespielt — neu gemischt, ${g.players[g.dealerIndex].name} gibt, alle legen nach.`
   deal(g)
 }
 
@@ -471,6 +474,53 @@ function letzterRefusal(others: Call[]): string | null {
   if (others.includes('mitgehen')) return 'Es geht schon jemand mit — jetzt entscheiden.'
   if (others.includes('letzter')) return 'Es kann nur einer "Letzter" sagen.'
   return null
+}
+
+/**
+ * Wer nach diesem Spieler noch ansagen darf — inklusive zweiter Chancen und
+ * eines wartenden "Letzten". Leer heisst: wer jetzt passt, lässt den Kratzer
+ * allein durchlaufen.
+ */
+function speakersAfter(g: Game, playerId: string): string[] {
+  if (g.awaitLetzter) return []
+
+  const letzter = g.players.filter((p) => p.id !== playerId && g.calls[p.id] === 'letzter')
+
+  if (g.secondChance.length > 0) {
+    return [...g.secondChance.filter((id) => id !== playerId), ...letzter.map((p) => p.id)]
+  }
+
+  // Erste Ansagerunde: reihum die noch ausstehenden Ansagen …
+  const rest: string[] = []
+  for (let k = 1; k < g.callsLeft; k++) rest.push(at(g, g.turn + k).id)
+
+  // … und danach, wer vor dem Kratzer gepasst hat: der wird nochmals gefragt.
+  const kratzer = g.players.find((p) => g.calls[p.id] === 'kratzen')
+  const second = kratzer
+    ? g.callOrder
+        .slice(0, g.callOrder.indexOf(kratzer.id))
+        .filter((id) => id !== playerId && g.calls[id] === 'weiter')
+    : []
+
+  return [...rest, ...second, ...letzter.map((p) => p.id)]
+}
+
+/** Alles, was ein Bot über die Ansagelage wissen muss. */
+export function callContext(g: Game, playerId: string) {
+  const others = g.players.filter((p) => p.id !== playerId).map((p) => g.calls[p.id] ?? 'weiter')
+  const after = speakersAfter(g, playerId)
+  return {
+    someoneKratzed: others.includes('kratzen'),
+    someoneMitgeht: others.includes('mitgehen'),
+    letzterTaken: others.includes('letzter'),
+    awaitLetzter: g.awaitLetzter,
+    letzterForced: g.letzterForced,
+    isLastToSpeak: after.length === 0,
+    // Menschen darf man nicht einplanen: die dürfen passen. Nach dem letzten
+    // Bot hält unter Umständen niemand mehr dagegen.
+    isLastBot: !after.some((id) => g.players.find((p) => p.id === id)?.bot),
+    canSayLetzter: letzterRefusal(others) === null,
+  }
 }
 
 export function applyCall(g: Game, playerId: string, call: Call): string | null {

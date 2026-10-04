@@ -25,8 +25,13 @@ describe('botCall', () => {
       hand,
       trump: TRUMP,
       someoneKratzed: false,
+      someoneMitgeht: false,
+      letzterTaken: false,
       awaitLetzter: false,
+      letzterForced: false,
       isLastToSpeak: false,
+      isLastBot: false,
+      canSayLetzter: false,
       ...over,
     })
 
@@ -52,6 +57,44 @@ describe('botCall', () => {
   it('entscheidet sich als Letzter nur zwischen mitgehen und passen', () => {
     expect(call(monster, { awaitLetzter: true })).toBe('mitgehen')
     expect(call(junk, { awaitLetzter: true })).toBe('weiter')
+  })
+
+  it('geht als Letzter auch mit Müll mit, wenn sonst niemand mitgeht', () => {
+    expect(call(junk, { awaitLetzter: true, letzterForced: true })).toBe('mitgehen')
+  })
+
+  it('lässt den Kratzer nicht allein durchlaufen', () => {
+    // Letzte Gelegenheit: passen hiesse, den Pott zu verschenken.
+    expect(call(junk, { someoneKratzed: true, isLastToSpeak: true })).toBe('mitgehen')
+  })
+
+  it('schenkt den Pott nicht, verzichtet aber, wenn schon jemand mitgeht', () => {
+    expect(
+      call(junk, { someoneKratzed: true, someoneMitgeht: true, isLastToSpeak: true }),
+    ).toBe('weiter')
+  })
+
+  it('hält dagegen, wenn nach ihm nur noch Menschen ansagen', () => {
+    // Menschen dürfen passen — nach dem letzten Bot ist der Kratzer sonst allein.
+    expect(call(junk, { someoneKratzed: true, isLastBot: true })).toBe('mitgehen')
+    expect(call(junk, { someoneKratzed: true, isLastBot: true, canSayLetzter: true })).toBe(
+      'letzter',
+    )
+  })
+
+  it('passt, wenn schon ein "Letzter" dagegenhält', () => {
+    expect(
+      call(junk, { someoneKratzed: true, letzterTaken: true, isLastToSpeak: true }),
+    ).toBe('weiter')
+  })
+
+  it('sagt mit halber Hand "Letzter", statt zu passen', () => {
+    const halb = [c('eichel', 13), c('schilten', 7), c('schellen', 8), c('eichel', 6)]
+    expect(call(halb, { someoneKratzed: true, canSayLetzter: true })).toBe('letzter')
+    // Ohne die Möglichkeit bleibt nur passen.
+    expect(call(halb, { someoneKratzed: true })).toBe('weiter')
+    // Mit richtiger Hand geht er sofort mit, statt zu warten.
+    expect(call(monster, { someoneKratzed: true, canSayLetzter: true })).toBe('mitgehen')
   })
 })
 
