@@ -35,7 +35,7 @@ export function usePractice(name: string) {
       onClose: () => {},
       onError: setError,
       onMessage: (msg: ServerMsg) => {
-        if (msg.t === 'state') setGame(msg.game)
+        if (msg.t === 'state' && msg.game.kind === 'chratzen') setGame(msg.game)
         else if (msg.t === 'error') setError(msg.message)
       },
     })

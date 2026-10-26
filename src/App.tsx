@@ -16,7 +16,10 @@ export default function App() {
     <div className="min-h-screen text-[#e8e4dc] font-sans max-w-lg mx-auto safe-top">
       {mode === 'menu' && <MainMenu onSelect={navigate} />}
       {mode === 'companion' && <CompanionMode onExit={back} onLearn={() => navigate('tutorial')} />}
-      {mode === 'digital' && <DigitalMode onExit={back} onLearn={() => navigate('tutorial')} />}
+      {mode === 'digital' && (
+        <DigitalMode kind="chratzen" onExit={back} onLearn={() => navigate('tutorial')} />
+      )}
+      {mode === 'fyn' && <DigitalMode kind="fyn" onExit={back} onLearn={() => navigate('tutorial')} />}
       {mode === 'cards' && <CardOverview onExit={back} />}
       {mode === 'tutorial' && <Tutorial onExit={back} onPlay={navigate} />}
       {mode === 'practice' && <Practice onExit={back} />}

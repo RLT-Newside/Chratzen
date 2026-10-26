@@ -38,6 +38,7 @@ export type GPlayer = {
 }
 
 export type Game = {
+  kind: 'chratzen'
   ante: number
   players: GPlayer[]
   hostId: string
@@ -113,6 +114,7 @@ export type Game = {
 
 export function createGame(hostId: string, ante: number): Game {
   return {
+    kind: 'chratzen',
     ante,
     players: [],
     hostId,
@@ -694,7 +696,11 @@ export function setShowBalances(g: Game, hostId: string, show: boolean): string 
 }
 
 /** Wie lange ein fertiger Stich liegen bleibt — Sache des Hosts, gilt am Tisch. */
-export function setTrickPause(g: Game, hostId: string, ms: number): string | null {
+export function setTrickPause(
+  g: Pick<Game, 'hostId' | 'trickPauseMs'>,
+  hostId: string,
+  ms: number,
+): string | null {
   if (g.hostId !== hostId) return 'Nur der Host stellt das Tempo ein.'
   g.trickPauseMs = Math.max(0, Math.min(5000, Math.round(Number(ms) || 0)))
   return null
@@ -719,6 +725,7 @@ export function nextRound(g: Game): string | null {
 // geheim.
 
 export type ClientGame = {
+  kind: 'chratzen'
   ante: number
   players: (GPlayer & { cards: number; call: Call; tricks: number })[]
   hostId: string
@@ -773,6 +780,7 @@ export function redact(g: Game, youId: string): ClientGame {
   const lead = g.trick[0]?.card.suit ?? null
 
   return {
+    kind: 'chratzen',
     ante: g.ante,
     players: g.players.map((p) => ({
       ...p,

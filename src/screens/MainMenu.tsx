@@ -1,7 +1,7 @@
-import { ChevronRight, Coins, GraduationCap, LayoutGrid, Wifi } from 'lucide-react'
+import { ChevronRight, Coins, GraduationCap, LayoutGrid, Swords, Wifi } from 'lucide-react'
 import { SUITS } from '../components/suits'
 
-export type Mode = 'menu' | 'companion' | 'digital' | 'cards' | 'tutorial' | 'practice'
+export type Mode = 'menu' | 'companion' | 'digital' | 'fyn' | 'cards' | 'tutorial' | 'practice'
 
 function ModeCard({
   title,
@@ -68,10 +68,12 @@ export function MainMenu({ onSelect }: { onSelect: (m: Mode) => void }) {
           ))}
         </div>
         <h1 className="font-heading text-7xl tracking-[0.08em] text-brand leading-none pot-glow">
-          CHRATZEN
+          JCARDS
         </h1>
-        <p className="label-caption mt-3">Schweizer Kartenspiel · 36 Jasskarten</p>
+        <p className="label-caption mt-3">Schweizer Kartenspiele · 36 Jasskarten</p>
       </header>
+
+      <p className="label-caption mb-2 px-1">Chratzen</p>
 
       {/* Steht bewusst vor den Modi: wer die Regeln nicht kennt, kann mit
           keinem der beiden etwas anfangen. */}
@@ -118,6 +120,20 @@ export function MainMenu({ onSelect }: { onSelect: (m: Mode) => void }) {
           onClick={() => onSelect('digital')}
         />
       </div>
+
+      <p className="label-caption mt-8 mb-2 px-1">Fuck Your Neighbour</p>
+      <ModeCard
+        title="FYN"
+        tag="Stiche ansagen · 2–6 Spieler"
+        lines={[
+          '11 Runden, von sechs Karten auf eine und zurück.',
+          'Wer genau trifft, punktet — der Geber darf nicht aufgehen.',
+          'Raumcode, WLAN oder Bluetooth, Bots inklusive.',
+        ]}
+        icon={<Swords className="w-5 h-5" />}
+        accent="bg-rose-400"
+        onClick={() => onSelect('fyn')}
+      />
 
       <div className="flex gap-2 mt-6">
         <button

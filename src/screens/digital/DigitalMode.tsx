@@ -1,9 +1,20 @@
 import { useOnline } from '../../hooks/useOnline'
+import type { GameKind } from '../../lib/protocol'
+import { FynTable } from './FynTable'
 import { Join } from './Join'
 import { Lobby } from './Lobby'
 import { Table } from './Table'
 
-export function DigitalMode({ onExit, onLearn }: { onExit: () => void; onLearn: () => void }) {
+export function DigitalMode({
+  kind,
+  onExit,
+  onLearn,
+}: {
+  /** Spiel für einen neuen Tisch — der Tisch selbst bestimmt, was gezeigt wird. */
+  kind: GameKind
+  onExit: () => void
+  onLearn: () => void
+}) {
   const net = useOnline()
   const { game, code } = net
 
@@ -16,6 +27,7 @@ export function DigitalMode({ onExit, onLearn }: { onExit: () => void; onLearn: 
     <>
       {!game || !code ? (
         <Join
+          kind={kind}
           connected={net.connected}
           server={net.server}
           isNative={net.isNative}
@@ -40,6 +52,17 @@ export function DigitalMode({ onExit, onLearn }: { onExit: () => void; onLearn: 
           onAddBot={net.addBot}
           onSetPause={net.setPause}
           onSetBalances={net.setBalances}
+          onLeave={leave}
+        />
+      ) : game.kind === 'fyn' ? (
+        <FynTable
+          game={game}
+          onBid={net.bid}
+          onPlay={net.play}
+          onNext={net.next}
+          onKick={net.kick}
+          onForce={net.force}
+          onSetPause={net.setPause}
           onLeave={leave}
         />
       ) : (

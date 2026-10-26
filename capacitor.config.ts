@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli'
 
 const config: CapacitorConfig = {
   appId: 'com.rltnewside.chratzen',
-  appName: 'Chratzen',
+  appName: 'JCards',
   webDir: 'dist',
   server: {
     // http statt https als WebView-Origin: sonst gilt eine Verbindung zu

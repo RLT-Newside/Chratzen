@@ -28,7 +28,23 @@ import {
   setTrickPause,
   startRound,
 } from './game'
-import type { ClientMsg, Outgoing } from './protocol'
+import {
+  type FynGame,
+  FYN_MAX_PLAYERS,
+  applyBid,
+  botBid,
+  botFynPlay,
+  createFyn,
+  finishFynTrick,
+  forceFyn,
+  fynActor,
+  kickFyn,
+  nextFynRound,
+  playFynCard,
+  redactFyn,
+  startFynRound,
+} from './fyn'
+import type { ClientMsg, GameKind, Outgoing } from './protocol'
 
 export const MAX_PLAYERS = 8
 /** So lange darf jemand am Zug trödeln, bevor der Host für ihn spielen darf. */
@@ -39,9 +55,18 @@ export const ROOM_TTL_MS = 30 * 60 * 1000
 // Ohne 0/O/1/I — am Stammtisch wird der Code vorgelesen.
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 
+type AnyGame = Game | FynGame
+
+// Die wenigen Stellen, an denen der Tischwirt wissen muss, welches Spiel läuft.
+const actorOf = (g: AnyGame) => (g.kind === 'fyn' ? fynActor(g) : currentActor(g))
+const finish = (g: AnyGame) => (g.kind === 'fyn' ? finishFynTrick(g) : finishTrick(g))
+const view = (g: AnyGame, id: string) => (g.kind === 'fyn' ? redactFyn(g, id) : redact(g, id))
+const maxPlayers = (g: AnyGame) => (g.kind === 'fyn' ? FYN_MAX_PLAYERS : MAX_PLAYERS)
+const WRONG_GAME = 'Gibt es in diesem Spiel nicht.'
+
 type Room = {
   code: string
-  game: Game
+  game: AnyGame
   /** Geheimes Session-Token → öffentliche Spieler-ID. */
   sessions: Map<string, string>
   /** Spieler-ID → Verbindungs-ID. */
@@ -83,7 +108,7 @@ export class TableHost {
   }
 
   /** Für das Host-Handy: der eine Raum, damit die UI Code und Stand kennt. */
-  room(code: string): Game | null {
+  room(code: string): AnyGame | null {
     return this.rooms.get(code)?.game ?? null
   }
 
@@ -102,9 +127,9 @@ export class TableHost {
   /** Zustand an alle Verbindungen des Raums — jeweils aus deren Sicht. */
   private broadcast(room: Room): Outgoing[] {
     // Pause "Aus" heisst sofort, nicht erst beim nächsten Tick.
-    if (room.game.trickPending && room.game.trickPauseMs === 0) finishTrick(room.game)
+    if (room.game.trickPending && room.game.trickPauseMs === 0) finish(room.game)
 
-    const actor = currentActor(room.game)
+    const actor = actorOf(room.game)
 
     // Uhr für die Stichpause: läuft, sobald der Stich entschieden daliegt.
     room.trickSince = room.game.trickPending ? room.trickSince || this.now() : 0
@@ -122,7 +147,7 @@ export class TableHost {
 
     const out: Outgoing[] = []
     for (const [playerId, connId] of room.conns) {
-      out.push({ to: connId, msg: { t: 'state', code: room.code, game: redact(room.game, playerId) } })
+      out.push({ to: connId, msg: { t: 'state', code: room.code, game: view(room.game, playerId) } })
     }
     return out
   }
@@ -182,7 +207,7 @@ export class TableHost {
   receive(connId: string, msg: ClientMsg): Outgoing[] {
     switch (msg.t) {
       case 'create':
-        return this.create(connId, msg.name, msg.ante)
+        return this.create(connId, msg.name, msg.ante, msg.game)
       case 'join':
         return this.join(connId, msg.code, msg.name)
       case 'rejoin':
@@ -192,13 +217,13 @@ export class TableHost {
     }
   }
 
-  private create(connId: string, name: string, ante: number): Outgoing[] {
+  private create(connId: string, name: string, ante: number, kind?: GameKind): Outgoing[] {
     const code = this.newCode()
     if (this.rooms.has(code)) return [{ to: connId, msg: { t: 'error', message: 'Tisch läuft schon.' } }]
 
     const playerId = this.randomId()
     const token = this.randomId() + this.randomId()
-    const game = createGame(playerId, Number(ante) || 100)
+    const game = kind === 'fyn' ? createFyn(playerId) : createGame(playerId, Number(ante) || 100)
     game.players.push({ id: playerId, name: cleanName(name), balance: 0, connected: true })
 
     const room: Room = {
@@ -223,7 +248,7 @@ export class TableHost {
 
     if (!room) return fail('Tisch nicht gefunden.')
     if (room.game.phase !== 'lobby') return fail('Partie läuft bereits.')
-    if (room.game.players.length >= MAX_PLAYERS) return fail('Tisch ist voll.')
+    if (room.game.players.length >= maxPlayers(room.game)) return fail('Tisch ist voll.')
 
     const playerId = this.randomId()
     const token = this.randomId() + this.randomId()
@@ -252,6 +277,9 @@ export class TableHost {
     if (!room) return [{ to: connId, msg: { t: 'error', message: 'Tisch existiert nicht mehr.' } }]
 
     const g = room.game
+    // Genau eines von beiden ist gesetzt.
+    const c = g.kind === 'fyn' ? null : g
+    const f = g.kind === 'fyn' ? g : null
     const me = link.playerId
     let err: string | null = null
     const extra: Outgoing[] = []
@@ -261,39 +289,44 @@ export class TableHost {
         if (g.hostId !== me) err = 'Nur der Host startet die Partie.'
         else if (g.phase !== 'lobby') err = 'Partie läuft bereits.'
         else if (g.players.length < 2) err = 'Mindestens 2 Spieler.'
-        else startRound(g)
+        else if (g.players.length > maxPlayers(g)) err = `Höchstens ${maxPlayers(g)} Spieler.`
+        else if (f) startFynRound(f)
+        else if (c) startRound(c)
         break
       case 'blind':
-        err = msg.take ? declareBlind(g, me) : declineBlind(g, me)
+        err = c ? (msg.take ? declareBlind(c, me) : declineBlind(c, me)) : WRONG_GAME
         break
       case 'call':
-        err = applyCall(g, me, msg.call)
+        err = c ? applyCall(c, me, msg.call) : WRONG_GAME
         break
       case 'exchange':
-        err = applyExchange(g, me, msg.cards ?? [])
+        err = c ? applyExchange(c, me, msg.cards ?? []) : WRONG_GAME
         break
       case 'sleeper':
-        err = applySleeperDiscard(g, me, msg.card)
+        err = c ? applySleeperDiscard(c, me, msg.card) : WRONG_GAME
+        break
+      case 'bid':
+        err = f ? applyBid(f, me, Number(msg.bid)) : WRONG_GAME
         break
       case 'play':
-        err = playCard(g, me, msg.card)
+        err = f ? playFynCard(f, me, msg.card) : playCard(c as Game, me, msg.card)
         break
       case 'next':
-        err = nextRound(g)
+        err = f ? nextFynRound(f) : nextRound(c as Game)
         break
       case 'force':
-        err = forceMove(g, me)
+        err = f ? forceFyn(f, me) : forceMove(c as Game, me)
         break
       case 'setPause':
         err = setTrickPause(g, me, msg.ms)
         break
       case 'setBalances':
-        err = setShowBalances(g, me, msg.show)
+        err = c ? setShowBalances(c, me, msg.show) : WRONG_GAME
         break
       case 'addBot':
         if (g.hostId !== me) err = 'Nur der Host kann Bots setzen.'
         else if (g.phase !== 'lobby') err = 'Bots nur in der Lobby.'
-        else if (g.players.length >= MAX_PLAYERS) err = 'Tisch ist voll.'
+        else if (g.players.length >= maxPlayers(g)) err = 'Tisch ist voll.'
         else {
           g.players.push({
             id: this.randomId(),
@@ -305,7 +338,7 @@ export class TableHost {
         }
         break
       case 'kick': {
-        err = kickPlayer(g, me, msg.playerId)
+        err = f ? kickFyn(f, me, msg.playerId) : kickPlayer(c as Game, me, msg.playerId)
         // Sofort entfernt (Lobby)? Dann Sitzung entwerten und Verbindung lösen.
         if (!err && !g.players.some((p) => p.id === msg.playerId)) {
           const victim = room.conns.get(msg.playerId)
@@ -331,6 +364,7 @@ export class TableHost {
    */
   private stepBot(room: Room): Outgoing[] {
     const g = room.game
+    if (g.kind === 'fyn') return this.stepFynBot(room, g)
     const actor = currentActor(g)
     const trump = g.trump?.suit
     if (!actor?.bot || !trump) return []
@@ -366,6 +400,14 @@ export class TableHost {
     return this.broadcast(room)
   }
 
+  private stepFynBot(room: Room, g: FynGame): Outgoing[] {
+    const actor = fynActor(g)
+    if (!actor?.bot) return []
+    if (g.phase === 'bids') applyBid(g, actor.id, botBid(g, actor.id))
+    else playFynCard(g, actor.id, botFynPlay(g, actor.id))
+    return this.broadcast(room)
+  }
+
   private fallbackMove(g: Game, id: string, hand: Card[]) {
     const lead = g.trick[0]?.card.suit ?? null
     if (g.phase === 'blind') declineBlind(g, id)
@@ -396,7 +438,7 @@ export class TableHost {
 
       // Erst den liegenden Stich abräumen, sonst zieht niemand weiter.
       if (room.game.trickPending && now - room.trickSince >= room.game.trickPauseMs) {
-        finishTrick(room.game)
+        finish(room.game)
         out.push(...this.broadcast(room))
         continue
       }
@@ -407,7 +449,7 @@ export class TableHost {
         continue // Der Zustand ist gerade raus, die Trödel-Prüfung kann warten.
       }
 
-      const actor = currentActor(room.game)
+      const actor = actorOf(room.game)
       const stalled = !!actor && (!actor.connected || now - room.turnSince > STALL_MS)
       if (stalled !== room.game.forceAllowed) out.push(...this.broadcast(room))
     }

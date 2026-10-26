@@ -1,7 +1,8 @@
 import { Capacitor } from '@capacitor/core'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { FynClientGame } from '../lib/fyn'
 import type { ClientGame } from '../lib/game'
-import type { ClientMsg } from '../lib/protocol'
+import type { ClientMsg, GameKind } from '../lib/protocol'
 import {
   type BluetoothInfo,
   type HostInfo,
@@ -62,7 +63,7 @@ export function useOnline() {
 
   const [mode, setMode] = useState<Mode>(initialMode)
   const [connected, setConnected] = useState(false)
-  const [game, setGame] = useState<ClientGame | null>(null)
+  const [game, setGame] = useState<ClientGame | FynClientGame | null>(null)
   const [code, setCode] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [hostInfo, setHostInfo] = useState<HostInfo | null>(null)
@@ -180,9 +181,9 @@ export function useOnline() {
       setMode({ kind: 'guest', url: getServerUrl() })
     },
     /** Tisch auf diesem Gerät öffnen — die anderen verbinden sich ins WLAN. */
-    hostTable: (name: string, ante: number) => {
+    hostTable: (name: string, ante: number, kind: GameKind) => {
       localStorage.removeItem(SESSION_KEY)
-      pending.current = { t: 'create', name, ante }
+      pending.current = { t: 'create', name, ante, game: kind }
       setMode({ kind: 'host' })
     },
     /** Host: Tisch zusätzlich per Bluetooth anbieten — für Gäste mit App, ganz ohne Netz. */
@@ -195,7 +196,8 @@ export function useOnline() {
       pending.current = readSession()?.bt === address ? null : { t: 'join', code: '', name }
       setMode({ kind: 'bluetooth', address })
     },
-    create: (name: string, ante: number) => send({ t: 'create', name, ante }),
+    create: (name: string, ante: number, kind: GameKind) =>
+      send({ t: 'create', name, ante, game: kind }),
     join: (roomCode: string, name: string) =>
       send({ t: 'join', code: roomCode.toUpperCase(), name }),
     leave,
@@ -205,6 +207,7 @@ export function useOnline() {
     exchange: (cards: string[]) => send({ t: 'exchange', cards }),
     sleeper: (card: string) => send({ t: 'sleeper', card }),
     play: (card: string) => send({ t: 'play', card }),
+    bid: (bid: number) => send({ t: 'bid', bid }),
     next: () => send({ t: 'next' }),
     kick: (playerId: string) => send({ t: 'kick', playerId }),
     addBot: () => send({ t: 'addBot' }),

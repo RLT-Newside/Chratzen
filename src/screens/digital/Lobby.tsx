@@ -1,8 +1,10 @@
 import { Bluetooth, Bot, Check, Copy, HelpCircle, LogOut, UserMinus, WifiOff } from 'lucide-react'
 import { useState } from 'react'
+import { FynRules } from '../../components/FynRules'
 import { HelpSheet } from '../../components/HelpSheet'
 import { PHASE_HELP } from '../../content/rules'
 import { Button, Card, SectionTitle, Segmented } from '../../components/ui'
+import { FYN_MAX_PLAYERS, type FynClientGame } from '../../lib/fyn'
 import type { ClientGame } from '../../lib/game'
 import { formatChf } from '../../lib/money'
 import type { BluetoothInfo, HostInfo } from '../../lib/transport'
@@ -21,7 +23,7 @@ export function Lobby({
   onSetBalances,
   onLeave,
 }: {
-  game: ClientGame
+  game: ClientGame | FynClientGame
   code: string
   hostInfo: HostInfo | null
   bluetooth: BluetoothInfo | null
@@ -37,6 +39,8 @@ export function Lobby({
   const [help, setHelp] = useState(false)
   const [pickedIp, setPickedIp] = useState<string | null>(null)
   const isHost = game.youId === game.hostId
+  const fyn = game.kind === 'fyn'
+  const max = fyn ? FYN_MAX_PLAYERS : 8
 
   const nics = hostInfo?.interfaces ?? []
   const ip = pickedIp ?? hostInfo?.ip ?? ''
@@ -184,11 +188,13 @@ export function Lobby({
       )}
 
       <p className="text-center text-xs text-white/35 mt-3">
-        Grundeinsatz {formatChf(game.ante)} pro Spieler und Runde
+        {game.kind === 'fyn'
+          ? 'Fuck Your Neighbour · 11 Runden · Punkte statt Geld'
+          : `Grundeinsatz ${formatChf(game.ante)} pro Spieler und Runde`}
       </p>
 
       <div className="mt-8">
-        <SectionTitle right={<span className="text-xs text-white/30">{game.players.length}/8</span>}>
+        <SectionTitle right={<span className="text-xs text-white/30">{game.players.length}/{max}</span>}>
           Am Tisch
         </SectionTitle>
         <div className="space-y-2">
@@ -226,33 +232,36 @@ export function Lobby({
         <>
           <PausePicker value={game.trickPauseMs} onChange={onSetPause} />
 
-          <div className="mt-6">
-            <SectionTitle>Kontostände</SectionTitle>
-            <Segmented
-              value={game.showBalances ? 'alle' : 'eigener'}
-              options={[
-                { value: 'eigener', label: 'Nur eigener' },
-                { value: 'alle', label: 'Alle sehen alles' },
-              ]}
-              onChange={(v) => onSetBalances(v === 'alle')}
-            />
-            <p className="text-xs text-white/35 mt-2 leading-relaxed">
-              Den eigenen Stand sieht jeder immer. Freigegeben zeigt die Kasse zusätzlich
-              alle Stände und wer wem was schuldet.
-            </p>
-          </div>
+          {game.kind === 'chratzen' && (
+            <div className="mt-6">
+              <SectionTitle>Kontostände</SectionTitle>
+              <Segmented
+                value={game.showBalances ? 'alle' : 'eigener'}
+                options={[
+                  { value: 'eigener', label: 'Nur eigener' },
+                  { value: 'alle', label: 'Alle sehen alles' },
+                ]}
+                onChange={(v) => onSetBalances(v === 'alle')}
+              />
+              <p className="text-xs text-white/35 mt-2 leading-relaxed">
+                Den eigenen Stand sieht jeder immer. Freigegeben zeigt die Kasse zusätzlich
+                alle Stände und wer wem was schuldet.
+              </p>
+            </div>
+          )}
 
           <Button
             className="w-full mt-6 flex items-center justify-center gap-2"
-            disabled={game.players.length >= 8}
+            disabled={game.players.length >= max}
             onClick={onAddBot}
           >
             <Bot className="w-4 h-4" /> Bot dazusetzen
           </Button>
           {game.players.length < 2 && (
             <p className="text-xs text-white/35 mt-2 leading-relaxed text-center">
-              Allein am Tisch? Setz einen Bot dazu — er kratzt und geht mit, damit
-              gespielt wird.
+              {fyn
+                ? 'Allein am Tisch? Setz einen Bot dazu.'
+                : 'Allein am Tisch? Setz einen Bot dazu — er kratzt und geht mit, damit gespielt wird.'}
             </p>
           )}
 
@@ -272,7 +281,8 @@ export function Lobby({
         </p>
       )}
 
-      {help && (
+      {help && fyn && <FynRules onClose={() => setHelp(false)} />}
+      {help && !fyn && (
         <HelpSheet
           initial={PHASE_HELP.lobby.section}
           hint={PHASE_HELP.lobby.hint}

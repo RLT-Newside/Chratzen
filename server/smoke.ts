@@ -61,7 +61,8 @@ function waitFor(c: Client, match: (msg: ServerMsg) => boolean, label: string): 
 /** Reagiert auf jeden Zustand und macht genau einen legalen Zug, wenn dran. */
 function drive(c: Client, onSettle: () => void) {
   c.onMessage.push((msg) => {
-    if (msg.t !== 'state') return
+    // Der Smoke-Test spielt Chratzen.
+    if (msg.t !== 'state' || msg.game.kind !== 'chratzen') return
     const game = msg.game
     c.game = game
     const key = `${game.round}|${game.phase}|${game.turn}|${game.trick.length}|${game.hand.length}|${game.blindOffer}`
@@ -124,7 +125,7 @@ async function main() {
   // Blind-Entscheidung. Also erst ablehnen, dann auf die Karten warten.
   for (const c of clients) {
     c.onMessage.push((m) => {
-      if (m.t === 'state' && m.game.blindOffer) send(c, { t: 'blind', take: false })
+      if (m.t === 'state' && m.game.kind === 'chratzen' && m.game.blindOffer) send(c, { t: 'blind', take: false })
     })
   }
 
@@ -134,7 +135,7 @@ async function main() {
     'neue Runde',
   )
   send(host, { t: 'next' })
-  beat.game = ((await dealt) as Extract<ServerMsg, { t: 'state' }>).game
+  beat.game = ((await dealt) as Extract<ServerMsg, { t: 'state' }>).game as ClientGame
   console.log(`Runde ${beat.game.round} ausgeteilt`)
 
   // Verbindungsabbruch mitten in der Partie → Wiedereinstieg per Token.
