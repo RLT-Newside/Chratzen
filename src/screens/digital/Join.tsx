@@ -1,11 +1,14 @@
 import { ArrowLeft, HelpCircle, Wifi } from 'lucide-react'
 import { useState } from 'react'
+import { FynRules } from '../../components/FynRules'
 import { HelpSheet } from '../../components/HelpSheet'
 import { Button, SectionTitle, Segmented } from '../../components/ui'
 import { ANTE_OPTIONS, formatChf } from '../../lib/money'
+import type { GameKind } from '../../lib/protocol'
 import { BluetoothPicker } from './BluetoothPicker'
 
 export function Join({
+  kind,
   connected,
   server,
   isNative,
@@ -18,12 +21,14 @@ export function Join({
   onBack,
   onLearn,
 }: {
+  /** Welches Spiel ein neuer Tisch bekommt. Beitreten geht zu jedem. */
+  kind: GameKind
   connected: boolean
   server: string
   isNative: boolean
   onChangeServer: (url: string) => void
-  onCreate: (name: string, ante: number) => void
-  onHost: (name: string, ante: number) => void
+  onCreate: (name: string, ante: number, kind: GameKind) => void
+  onHost: (name: string, ante: number, kind: GameKind) => void
   onJoin: (code: string, name: string) => void
   onJoinBluetooth: (address: string, name: string) => void
   connectingTo: string | null
@@ -50,7 +55,9 @@ export function Join({
         <Button variant="ghost" size="sm" onClick={onBack} aria-label="Zurück">
           <ArrowLeft className="w-5 h-5" />
         </Button>
-        <h1 className="font-heading text-4xl tracking-wide leading-none">DIGITAL</h1>
+        <h1 className="font-heading text-4xl tracking-wide leading-none">
+          {kind === 'fyn' ? 'FYN' : 'DIGITAL'}
+        </h1>
         <Button
           variant="ghost"
           size="sm"
@@ -128,11 +135,14 @@ export function Join({
 
       <div className="mt-8">
         <SectionTitle>Neuen Tisch eröffnen</SectionTitle>
-        <Segmented
-          value={ante}
-          onChange={setAnte}
-          options={ANTE_OPTIONS.map((a) => ({ value: a as number, label: formatChf(a) }))}
-        />
+        {/* FYN zählt Punkte, kein Geld. */}
+        {kind === 'chratzen' && (
+          <Segmented
+            value={ante}
+            onChange={setAnte}
+            options={ANTE_OPTIONS.map((a) => ({ value: a as number, label: formatChf(a) }))}
+          />
+        )}
 
         {isNative ? (
           <>
@@ -141,7 +151,7 @@ export function Join({
               size="lg"
               className="w-full mt-3 flex items-center justify-center gap-2"
               disabled={!hasName}
-              onClick={() => onHost(name.trim(), ante)}
+              onClick={() => onHost(name.trim(), ante, kind)}
             >
               <Wifi className="w-4 h-4" /> Tisch auf diesem Gerät
             </Button>
@@ -156,7 +166,7 @@ export function Join({
                 size="md"
                 className="w-full mt-3"
                 disabled={!ready}
-                onClick={() => onCreate(name.trim(), ante)}
+                onClick={() => onCreate(name.trim(), ante, kind)}
               >
                 Stattdessen auf {server} eröffnen
               </Button>
@@ -168,7 +178,7 @@ export function Join({
             size="lg"
             className="w-full mt-3"
             disabled={!ready}
-            onClick={() => onCreate(name.trim(), ante)}
+            onClick={() => onCreate(name.trim(), ante, kind)}
           >
             Tisch eröffnen
           </Button>
@@ -212,7 +222,8 @@ export function Join({
         </Button>
       </div>
 
-      {help && (
+      {help && kind === 'fyn' && <FynRules onClose={() => setHelp(false)} />}
+      {help && kind === 'chratzen' && (
         <HelpSheet
           initial="ziel"
           hint="Einer eröffnet den Tisch und gibt den Raumcode weiter — die anderen tippen ihn hier ein."

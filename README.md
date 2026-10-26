@@ -1,13 +1,13 @@
-# Chratzen
+# JCards
 
-Webapp für das Schweizer Kartenspiel **Chratzen** — mobile-first, dunkel, offline-fähig.
+Webapp für Schweizer Kartenspiele mit 36 Jasskarten — mobile-first, dunkel, offline-fähig.
+Zwei Spiele: **Chratzen** und **Fuck Your Neighbour** (FYN).
 
-Zwei Modi:
-
-| Modus | Status | Was er macht |
+| Spiel · Modus | Status | Was er macht |
 |---|---|---|
-| **Companion** (Kasse) | ✅ | Ihr spielt mit echten Karten und sagt am Tisch an. Die App führt **nur die Kasse**: Grundeinsatz, Pott, Ausschüttung, Bete. **Braucht keinen Server.** |
-| **Digital** (Multiplayer) | ✅ | Raumcode oder Bluetooth, virtueller Tisch, Austeilen/Tauschen/Stechen automatisch, Wiedereinstieg per Token. |
+| Chratzen · **Companion** (Kasse) | ✅ | Ihr spielt mit echten Karten und sagt am Tisch an. Die App führt **nur die Kasse**: Grundeinsatz, Pott, Ausschüttung, Bete. **Braucht keinen Server.** |
+| Chratzen · **Digital** (Multiplayer) | ✅ | Raumcode oder Bluetooth, virtueller Tisch, Austeilen/Tauschen/Stechen automatisch, Wiedereinstieg per Token. |
+| FYN · **Digital** (Multiplayer) | ✅ | Stichansage über 11 Runden (6→1→6 Karten), ohne Trumpf, Stechen/Erben, Stirnrunde, Punkte. Gleicher Tisch, gleiche Wege (Code, WLAN, Bluetooth), Bots. |
 
 ## Wer führt den Tisch?
 
@@ -33,7 +33,7 @@ npm install
 npm start        # Web (:5173) + Server (:3001) parallel
 npm run dev      # nur Frontend — /ws wird auf :3001 geproxyt
 npm run server   # nur Backend
-npm test         # 120 Unit-Tests (Regeln, Engine, Bots, Tischwirt, Transport)
+npm test         # 132 Unit-Tests (Regeln, Engines, Bots, Tischwirt, Transport)
 npm run smoke    # E2E über echte WebSockets (Server muss laufen)
 npm run build    # tsc -b + vite build
 npx cap sync android && cd android && ./gradlew assembleRelease   # APK
@@ -48,6 +48,7 @@ alles auf `http://localhost:3001`.
 src/
   lib/money.ts        Rappen-Arithmetik, Largest-Remainder-Split
   lib/rules.ts        Chratzen-Regelwerk, rein funktional (gilt für beide Modi)
+  lib/fyn.ts          Fuck-Your-Neighbour-Engine + Bot + Redaction
   lib/cards.ts        36er-Deck, Stichvergleich, Farbzwang
   lib/game.ts         Autoritative Engine + Redaction pro Spieler
   lib/host.ts         Tischwirt: Räume, Sitzungen, Rauswurf, Bot-Takt

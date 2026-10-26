@@ -6,11 +6,15 @@
  * das die Verbindungen über ein natives Plugin annimmt.
  */
 import type { CardId } from './cards'
+import type { FynClientGame } from './fyn'
 import type { ClientGame } from './game'
 import type { Call } from './rules'
 
+/** Welches Spiel am Tisch läuft. Fehlt es, ist es Chratzen. */
+export type GameKind = 'chratzen' | 'fyn'
+
 export type ClientMsg =
-  | { t: 'create'; name: string; ante: number }
+  | { t: 'create'; name: string; ante: number; game?: GameKind }
   | { t: 'join'; code: string; name: string }
   | { t: 'rejoin'; code: string; token: string }
   | { t: 'start' }
@@ -19,6 +23,7 @@ export type ClientMsg =
   | { t: 'exchange'; cards: CardId[] }
   | { t: 'sleeper'; card: CardId }
   | { t: 'play'; card: CardId }
+  | { t: 'bid'; bid: number }
   | { t: 'next' }
   | { t: 'kick'; playerId: string }
   | { t: 'force' }
@@ -28,7 +33,7 @@ export type ClientMsg =
 
 export type ServerMsg =
   | { t: 'joined'; code: string; token: string }
-  | { t: 'state'; code: string; game: ClientGame }
+  | { t: 'state'; code: string; game: ClientGame | FynClientGame }
   | { t: 'error'; message: string }
   | { t: 'kicked' }
 

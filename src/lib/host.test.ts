@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { cardId } from './cards'
+import type { ClientGame } from './game'
 import { TableHost } from './host'
 import type { ClientMsg, Outgoing, ServerMsg } from './protocol'
 
@@ -7,8 +8,11 @@ import type { ClientMsg, Outgoing, ServerMsg } from './protocol'
  * Der Tischwirt ohne Transport — genau so läuft er auch im Host-Handy,
  * wo das native Plugin nur die Strings durchreicht.
  */
+// Die Tische hier sind Chratzen-Tische — FYN hat eigene Tests in fyn.test.ts.
+type Msg<T> = T extends 'state' ? { t: 'state'; code: string; game: ClientGame } : Extract<ServerMsg, { t: T }>
+
 function pick<T extends ServerMsg['t']>(out: Outgoing[], to: string, t: T) {
-  return out.find((o) => o.to === to && o.msg.t === t)?.msg as Extract<ServerMsg, { t: T }> | undefined
+  return out.find((o) => o.to === to && o.msg.t === t)?.msg as Msg<T> | undefined
 }
 
 /** Steuerbare Uhr — sonst läuft eine Stichpause im Test nie ab. */
@@ -316,7 +320,7 @@ describe('TableHost', () => {
 
     // Ohne Annotation dreht sich die Typinferenz im Kreis, weil die Schleife
     // `state` liest und neu setzt.
-    type StateMsg = Extract<ServerMsg, { t: 'state' }> | undefined
+    type StateMsg = Msg<'state'> | undefined
     let state: StateMsg = pick(host.receive('c-anna', { t: 'start' }), 'c-anna', 'state')
     const conn = (id: string) => (id === 'id0' ? 'c-anna' : id === 'id3' ? 'c-beat' : 'c-cara')
 
@@ -359,7 +363,7 @@ describe('TableHost', () => {
     for (let k = 0; k < 3; k++) host.receive('c-anna', { t: 'addBot' })
     host.receive('c-anna', { t: 'setPause', ms: 0 })
 
-    type StateMsg = Extract<ServerMsg, { t: 'state' }> | undefined
+    type StateMsg = Msg<'state'> | undefined
     let state: StateMsg = pick(host.receive('c-anna', { t: 'start' }), 'c-anna', 'state')
     let contested = 0
 
