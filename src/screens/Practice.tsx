@@ -1,7 +1,8 @@
 import { GraduationCap, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { Button } from '../components/ui'
-import { type Lesson, type LessonId, nextLesson } from '../content/coach'
+import { type Lesson, nextLesson } from '../content/coach'
+import { nextFynLesson } from '../content/fynCoach'
 import { usePractice } from '../hooks/usePractice'
 import type { GameKind } from '../lib/protocol'
 import { FynTable } from './digital/FynTable'
@@ -12,20 +13,20 @@ import { Table } from './digital/Table'
  * was gerade passiert. Der Coach meldet sich pro Thema einmal — wer alles
  * kennt, spielt einfach weiter.
  *
- * FYN übt ohne Coach — die Regeln passen auf eine Seite und liegen hinter dem
- * Hilfe-Knopf am Tisch.
+ * Jedes Spiel hat seinen eigenen Coach; die Lektions-IDs teilen sich nur den
+ * Namensraum dieser einen Übung.
  */
 export function Practice({ kind = 'chratzen', onExit }: { kind?: GameKind; onExit: () => void }) {
   const p = usePractice('Du', kind)
-  const [seen, setSeen] = useState<Set<LessonId>>(() => new Set())
-  const [lesson, setLesson] = useState<Lesson | null>(null)
+  const [seen, setSeen] = useState<Set<string>>(() => new Set())
+  const [lesson, setLesson] = useState<Lesson<string> | null>(null)
   const [open, setOpen] = useState(true)
 
   // Erst die offene Lektion wegklicken, dann die nächste — sonst überholen sich
   // die Einwürfe, sobald mehrere Bedingungen gleichzeitig zutreffen.
   useEffect(() => {
-    if (!p.game || p.game.kind !== 'chratzen' || lesson) return
-    const next = nextLesson(p.game, seen)
+    if (!p.game || lesson) return
+    const next = p.game.kind === 'fyn' ? nextFynLesson(p.game, seen) : nextLesson(p.game, seen)
     if (next) {
       setLesson(next)
       setOpen(true)

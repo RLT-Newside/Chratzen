@@ -18,8 +18,8 @@ export type LessonId =
   | 'abrechnung'
   | 'fertig'
 
-export type Lesson = {
-  id: LessonId
+export type Lesson<Id extends string = LessonId> = {
+  id: Id
   title: string
   body: ReactNode
   /** Beschriftung des Wegklick-Knopfs. */
@@ -129,7 +129,7 @@ function settleBody(game: ClientGame): ReactNode {
  * Die Reihenfolge ist die Prüfreihenfolge: die erste ungesehene, deren Lage
  * zutrifft, gewinnt.
  */
-export function nextLesson(game: ClientGame, seen: Set<LessonId>): Lesson | null {
+export function nextLesson(game: ClientGame, seen: Set<string>): Lesson | null {
   const others = game.players.filter((p) => p.id !== game.youId).map((p) => p.name)
 
   const all: Lesson[] = [
