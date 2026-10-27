@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { FynClientGame } from '../lib/fyn'
 import type { ClientGame } from '../lib/game'
-import type { ClientMsg, ServerMsg } from '../lib/protocol'
+import type { ClientMsg, GameKind, ServerMsg } from '../lib/protocol'
 import type { Call } from '../lib/rules'
 import { type Transport, createLocalTransport } from '../lib/transport'
 
@@ -16,9 +17,9 @@ const PRACTICE_PAUSE_MS = 1800
  * Es ist dieselbe Engine wie am echten Tisch — die Übungsrunde kann also nichts
  * erlauben, was später verboten wäre.
  */
-export function usePractice(name: string) {
+export function usePractice(name: string, kind: GameKind = 'chratzen') {
   const transportRef = useRef<Transport | null>(null)
-  const [game, setGame] = useState<ClientGame | null>(null)
+  const [game, setGame] = useState<ClientGame | FynClientGame | null>(null)
   const [error, setError] = useState<string | null>(null)
   /** Hochzählen startet den Tisch neu — der alte Transport wird abgeräumt. */
   const [attempt, setAttempt] = useState(0)
@@ -27,7 +28,7 @@ export function usePractice(name: string) {
     setGame(null)
     const transport = createLocalTransport({
       onOpen: () => {
-        transport.send({ t: 'create', name, ante: PRACTICE_ANTE })
+        transport.send({ t: 'create', name, ante: PRACTICE_ANTE, game: kind })
         for (let i = 0; i < BOTS; i++) transport.send({ t: 'addBot' })
         transport.send({ t: 'setPause', ms: PRACTICE_PAUSE_MS })
         transport.send({ t: 'start' })
@@ -35,7 +36,7 @@ export function usePractice(name: string) {
       onClose: () => {},
       onError: setError,
       onMessage: (msg: ServerMsg) => {
-        if (msg.t === 'state' && msg.game.kind === 'chratzen') setGame(msg.game)
+        if (msg.t === 'state') setGame(msg.game)
         else if (msg.t === 'error') setError(msg.message)
       },
     })
@@ -45,7 +46,7 @@ export function usePractice(name: string) {
       transportRef.current = null
       transport.close()
     }
-  }, [name, attempt])
+  }, [name, kind, attempt])
 
   useEffect(() => {
     if (!error) return
@@ -63,6 +64,7 @@ export function usePractice(name: string) {
     exchange: (cards: string[]) => send({ t: 'exchange', cards }),
     sleeper: (card: string) => send({ t: 'sleeper', card }),
     play: (card: string) => send({ t: 'play', card }),
+    bid: (bid: number) => send({ t: 'bid', bid }),
     blind: (take: boolean) => send({ t: 'blind', take }),
     next: () => send({ t: 'next' }),
     kick: (playerId: string) => send({ t: 'kick', playerId }),

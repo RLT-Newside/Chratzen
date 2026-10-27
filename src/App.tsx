@@ -23,6 +23,7 @@ export default function App() {
       {mode === 'cards' && <CardOverview onExit={back} />}
       {mode === 'tutorial' && <Tutorial onExit={back} onPlay={navigate} />}
       {mode === 'practice' && <Practice onExit={back} />}
+      {mode === 'fynPractice' && <Practice kind="fyn" onExit={back} />}
     </div>
   )
 }

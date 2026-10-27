@@ -1,7 +1,15 @@
 import { ChevronRight, Coins, GraduationCap, LayoutGrid, Swords, Wifi } from 'lucide-react'
 import { SUITS } from '../components/suits'
 
-export type Mode = 'menu' | 'companion' | 'digital' | 'fyn' | 'cards' | 'tutorial' | 'practice'
+export type Mode =
+  | 'menu'
+  | 'companion'
+  | 'digital'
+  | 'fyn'
+  | 'fynPractice'
+  | 'cards'
+  | 'tutorial'
+  | 'practice'
 
 function ModeCard({
   title,
@@ -134,6 +142,15 @@ export function MainMenu({ onSelect }: { onSelect: (m: Mode) => void }) {
         accent="bg-rose-400"
         onClick={() => onSelect('fyn')}
       />
+      <button
+        type="button"
+        onClick={() => onSelect('fynPractice')}
+        className="press-scale w-full flex items-center justify-center gap-2 py-3 mt-1 rounded-xl
+          text-sm text-white/50 hover:text-white/80 transition-colors"
+      >
+        <GraduationCap className="w-4 h-4" />
+        FYN üben gegen Bots
+      </button>
 
       <div className="flex gap-2 mt-6">
         <button
