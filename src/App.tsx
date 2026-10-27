@@ -1,4 +1,5 @@
 import { CardOverview } from './screens/CardOverview'
+import { FynPad } from './screens/FynPad'
 import { MainMenu } from './screens/MainMenu'
 import { Practice } from './screens/Practice'
 import { Tutorial } from './screens/Tutorial'
@@ -24,6 +25,7 @@ export default function App() {
       {mode === 'tutorial' && <Tutorial onExit={back} onPlay={navigate} />}
       {mode === 'practice' && <Practice onExit={back} />}
       {mode === 'fynPractice' && <Practice kind="fyn" onExit={back} />}
+      {mode === 'fynPad' && <FynPad onExit={back} />}
     </div>
   )
 }

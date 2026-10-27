@@ -1,4 +1,4 @@
-import { ChevronRight, Coins, GraduationCap, LayoutGrid, Swords, Wifi } from 'lucide-react'
+import { ChevronRight, Coins, GraduationCap, LayoutGrid, NotebookPen, Swords, Wifi } from 'lucide-react'
 import { SUITS } from '../components/suits'
 
 export type Mode =
@@ -7,6 +7,7 @@ export type Mode =
   | 'digital'
   | 'fyn'
   | 'fynPractice'
+  | 'fynPad'
   | 'cards'
   | 'tutorial'
   | 'practice'
@@ -142,15 +143,26 @@ export function MainMenu({ onSelect }: { onSelect: (m: Mode) => void }) {
         accent="bg-rose-400"
         onClick={() => onSelect('fyn')}
       />
-      <button
-        type="button"
-        onClick={() => onSelect('fynPractice')}
-        className="press-scale w-full flex items-center justify-center gap-2 py-3 mt-1 rounded-xl
-          text-sm text-white/50 hover:text-white/80 transition-colors"
-      >
-        <GraduationCap className="w-4 h-4" />
-        FYN üben gegen Bots
-      </button>
+      <div className="flex gap-2 mt-1">
+        <button
+          type="button"
+          onClick={() => onSelect('fynPractice')}
+          className="press-scale flex-1 flex items-center justify-center gap-2 py-3 rounded-xl
+            text-sm text-white/50 hover:text-white/80 transition-colors"
+        >
+          <GraduationCap className="w-4 h-4" />
+          Üben gegen Bots
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelect('fynPad')}
+          className="press-scale flex-1 flex items-center justify-center gap-2 py-3 rounded-xl
+            text-sm text-white/50 hover:text-white/80 transition-colors"
+        >
+          <NotebookPen className="w-4 h-4" />
+          Block für echte Karten
+        </button>
+      </div>
 
       <div className="flex gap-2 mt-6">
         <button

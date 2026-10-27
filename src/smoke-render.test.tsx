@@ -4,6 +4,7 @@ import { FynRules } from './components/FynRules'
 import { HelpSheet } from './components/HelpSheet'
 import { RULE_SECTIONS } from './content/rules'
 import { createFyn, redactFyn, startFynRound } from './lib/fyn'
+import { FynPad } from './screens/FynPad'
 import { MainMenu } from './screens/MainMenu'
 import { Practice } from './screens/Practice'
 import { Tutorial } from './screens/Tutorial'
@@ -36,7 +37,8 @@ test('Menü und FYN-Tisch rendern in jeder Phase', () => {
         onLeave={noop}
       />,
     )
-  expect(renderToString(<MainMenu onSelect={noop} />)).toContain('JCARDS')
+  expect(renderToString(<MainMenu onSelect={noop} />)).toContain('Block für echte Karten')
+  expect(renderToString(<FynPad onExit={noop} />)).toContain('FYN BLOCK')
   expect(renderToString(<FynRules onClose={noop} />)).toContain('Stirnrunde')
 
   startFynRound(g)

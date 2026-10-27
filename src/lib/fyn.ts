@@ -98,13 +98,18 @@ export function fynScore(bid: number, tricks: number): number {
  * 0, die anderen alle 0). Dann weicht die Summenregel.
  */
 export function legalBids(g: FynGame, playerId: string): number[] {
-  const n = cardsThisRound(g)
-  const all = Array.from({ length: n + 1 }, (_, k) => k).filter(
-    (k) => !(k === 0 && g.lastBids[playerId] === 0),
-  )
-  if (g.bidsLeft !== 1) return all
   const others = g.players.reduce((s, p) => s + (p.id === playerId ? 0 : (g.bids[p.id] ?? 0)), 0)
-  const allowed = all.filter((k) => others + k !== n)
+  return allowedBids(cardsThisRound(g), g.lastBids[playerId], g.bidsLeft === 1 ? others : null)
+}
+
+/**
+ * Dieselbe Regel ohne Spielzustand — auch für den Block am echten Tisch.
+ * `othersSum` nur für den Letzten, sonst null.
+ */
+export function allowedBids(n: number, lastBid: number | undefined, othersSum: number | null): number[] {
+  const all = Array.from({ length: n + 1 }, (_, k) => k).filter((k) => !(k === 0 && lastBid === 0))
+  if (othersSum == null) return all
+  const allowed = all.filter((k) => othersSum + k !== n)
   return allowed.length > 0 ? allowed : all
 }
 
