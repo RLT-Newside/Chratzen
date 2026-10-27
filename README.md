@@ -7,6 +7,7 @@ Zwei Spiele: **Chratzen** und **Fuck Your Neighbour** (FYN).
 |---|---|---|
 | Chratzen · **Companion** (Kasse) | ✅ | Ihr spielt mit echten Karten und sagt am Tisch an. Die App führt **nur die Kasse**: Grundeinsatz, Pott, Ausschüttung, Bete. **Braucht keinen Server.** |
 | Chratzen · **Digital** (Multiplayer) | ✅ | Raumcode oder Bluetooth, virtueller Tisch, Austeilen/Tauschen/Stechen automatisch, Wiedereinstieg per Token. |
+| FYN · **Block** | ✅ | Ihr spielt mit echten Karten. Die App prüft Ansagen (Geber-Summe, nie zweimal 0), nimmt Stiche auf und zählt Punkte über 11 Runden. **Braucht keinen Server.** |
 | FYN · **Digital** (Multiplayer) | ✅ | Stichansage über 11 Runden (6→1→6 Karten), ohne Trumpf, Stechen/Erben, Stirnrunde, Punkte. Gleicher Tisch, gleiche Wege (Code, WLAN, Bluetooth), Bots. |
 
 ## Wer führt den Tisch?
