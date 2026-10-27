@@ -145,7 +145,7 @@ jobs:
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass "pass:$KEYSTORE_PASSWORD" \
             --key-pass "pass:$KEYSTORE_PASSWORD" \
-            --out "Chratzen-${TAG}.apk" \
+            --out "JCards-${TAG}.apk" \
             android/app/build/outputs/apk/release/app-release-unsigned.apk
 
       - name: Tag setzen und Release anlegen
@@ -156,6 +156,6 @@ jobs:
           git tag "$TAG"
           git push origin "$TAG"
           gh release create "$TAG" \
-            --title "Chratzen $TAG" \
+            --title "JCards $TAG" \
             --generate-notes \
-            "Chratzen-${TAG}.apk"
+            "JCards-${TAG}.apk"

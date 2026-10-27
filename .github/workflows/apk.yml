@@ -50,17 +50,17 @@ jobs:
             --ks-key-alias "$KEY_ALIAS" \
             --ks-pass "pass:$KEYSTORE_PASSWORD" \
             --key-pass "pass:$KEYSTORE_PASSWORD" \
-            --out Chratzen.apk \
+            --out JCards.apk \
             android/app/build/outputs/apk/release/app-release-unsigned.apk
 
       - name: Collect artifact
         run: |
-          test -f Chratzen.apk || cp android/app/build/outputs/apk/release/app-release-unsigned.apk Chratzen-unsigned.apk
+          test -f JCards.apk || cp android/app/build/outputs/apk/release/app-release-unsigned.apk JCards-unsigned.apk
           ls -la *.apk
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Chratzen-apk
+          name: JCards-apk
           path: '*.apk'
           retention-days: 14
 
