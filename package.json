@@ -2,11 +2,11 @@
   "name": "chratzen",
   "private": true,
   "version": "0.7.0",
-  "description": "JCards — Schweizer Kartenspiele mit Jasskarten: Chratzen (Companion + Digital) und Fuck Your Neighbour (Digital)",
+  "description": "JCards — Schweizer Kartenspiele mit Jasskarten: Chratzen (Companion + Digital) und Fuck Your Neighbour (Digital + Block)",
   "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/RLT-Newside/Chratzen.git"
+    "url": "git+https://github.com/RLT-Newside/JCards.git"
   },
   "type": "module",
   "scripts": {
