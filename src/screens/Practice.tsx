@@ -3,15 +3,20 @@ import { useEffect, useState } from 'react'
 import { Button } from '../components/ui'
 import { type Lesson, type LessonId, nextLesson } from '../content/coach'
 import { usePractice } from '../hooks/usePractice'
+import type { GameKind } from '../lib/protocol'
+import { FynTable } from './digital/FynTable'
 import { Table } from './digital/Table'
 
 /**
  * Übungsrunde mit Coach: ein echter Tisch gegen Bots, aber jemand sagt dir,
  * was gerade passiert. Der Coach meldet sich pro Thema einmal — wer alles
  * kennt, spielt einfach weiter.
+ *
+ * FYN übt ohne Coach — die Regeln passen auf eine Seite und liegen hinter dem
+ * Hilfe-Knopf am Tisch.
  */
-export function Practice({ onExit }: { onExit: () => void }) {
-  const p = usePractice('Du')
+export function Practice({ kind = 'chratzen', onExit }: { kind?: GameKind; onExit: () => void }) {
+  const p = usePractice('Du', kind)
   const [seen, setSeen] = useState<Set<LessonId>>(() => new Set())
   const [lesson, setLesson] = useState<Lesson | null>(null)
   const [open, setOpen] = useState(true)
@@ -19,7 +24,7 @@ export function Practice({ onExit }: { onExit: () => void }) {
   // Erst die offene Lektion wegklicken, dann die nächste — sonst überholen sich
   // die Einwürfe, sobald mehrere Bedingungen gleichzeitig zutreffen.
   useEffect(() => {
-    if (!p.game || lesson) return
+    if (!p.game || p.game.kind !== 'chratzen' || lesson) return
     const next = nextLesson(p.game, seen)
     if (next) {
       setLesson(next)
@@ -43,20 +48,33 @@ export function Practice({ onExit }: { onExit: () => void }) {
 
   return (
     <>
-      <Table
-        game={p.game}
-        onCall={p.call}
-        onExchange={p.exchange}
-        onSleeper={p.sleeper}
-        onPlay={p.play}
-        onBlind={p.blind}
-        onNext={p.next}
-        onKick={p.kick}
-        onForce={p.force}
-        onSetPause={p.setPause}
-        onSetBalances={p.setBalances}
-        onLeave={onExit}
-      />
+      {p.game.kind === 'fyn' ? (
+        <FynTable
+          game={p.game}
+          onBid={p.bid}
+          onPlay={p.play}
+          onNext={p.next}
+          onKick={p.kick}
+          onForce={p.force}
+          onSetPause={p.setPause}
+          onLeave={onExit}
+        />
+      ) : (
+        <Table
+          game={p.game}
+          onCall={p.call}
+          onExchange={p.exchange}
+          onSleeper={p.sleeper}
+          onPlay={p.play}
+          onBlind={p.blind}
+          onNext={p.next}
+          onKick={p.kick}
+          onForce={p.force}
+          onSetPause={p.setPause}
+          onSetBalances={p.setBalances}
+          onLeave={onExit}
+        />
+      )}
 
       {lesson && (
         <div className="fixed top-0 inset-x-0 z-40 max-w-lg mx-auto px-3 safe-top pointer-events-none">

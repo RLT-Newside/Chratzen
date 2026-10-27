@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ServerMsg } from './protocol'
-import { createBluetoothTransport, createHostTransport } from './transport'
+import { createBluetoothTransport, createHostTransport, createLocalTransport } from './transport'
 
 /** Die nativen Plugins als Attrappe: Ereignisse von Hand auslösen, Aufrufe mitschreiben. */
 const fakes = vi.hoisted(() => {
@@ -113,5 +113,23 @@ describe('Bluetooth-Gast', () => {
     expect(h.onClose).toHaveBeenCalledTimes(1)
     expect(bt.connect).toHaveBeenCalledTimes(1)
     guest.close()
+  })
+})
+
+describe('Übungstisch', () => {
+  it('baut einen FYN-Tisch mit Bots auf, ganz ohne Netz', () => {
+    const h = handlers()
+    const local = createLocalTransport(h)
+    local.send({ t: 'create', name: 'Du', ante: 100, game: 'fyn' })
+    local.send({ t: 'addBot' })
+    local.send({ t: 'addBot' })
+    local.send({ t: 'start' })
+
+    const states = h.onMessage.mock.calls.map(([m]) => m as ServerMsg).filter((m) => m.t === 'state')
+    const last = states[states.length - 1]
+    expect(last?.t === 'state' && last.game.kind).toBe('fyn')
+    expect(last?.t === 'state' && last.game.phase).toBe('bids')
+    expect(last?.t === 'state' && last.game.players.filter((p) => p.bot)).toHaveLength(2)
+    local.close()
   })
 })
