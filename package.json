@@ -1,7 +1,7 @@
 {
   "name": "chratzen",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "JCards — Schweizer Kartenspiele mit Jasskarten: Chratzen (Companion + Digital) und Fuck Your Neighbour (Digital)",
   "license": "GPL-3.0-or-later",
   "repository": {
